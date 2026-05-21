@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { loginRequest } from "../services/authService";
 
 // ─── Animation variants ───────────────────────────────────────────────────────
 
@@ -133,6 +134,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -148,9 +150,21 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    // TODO: conectar con POST /api/auth/login (JWT)
-    await new Promise((r) => setTimeout(r, 1400));
-    setIsLoading(false);
+    setError("");
+
+    try {
+      const user = await loginRequest({
+        correo: email,
+        contrasena: password,
+      });
+
+      login(user);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -397,6 +411,15 @@ export default function Login() {
                 </AnimatePresence>
               </motion.button>
             </motion.div>
+
+            {error && (
+              <motion.p
+                variants={fieldVariants}
+                className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2"
+              >
+                {error}
+              </motion.p>
+            )}
 
             {/* Divider */}
             <motion.div variants={fieldVariants} className="flex items-center gap-3 my-1">

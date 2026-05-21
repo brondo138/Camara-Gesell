@@ -13,6 +13,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   const logout = useCallback(() => {
+    localStorage.removeItem("gesell_token")
     localStorage.removeItem("gesell_user")
     setUser(null)
   }, [])

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   CheckCircle2,
   Edit3,
@@ -13,6 +13,7 @@ import {
   ROLES,
   createUsuario,
   deleteUsuario,
+  getRoleValue,
   getUsuarios,
   toggleUsuarioActivo,
   updateUsuario,
@@ -27,11 +28,29 @@ const emptyForm = {
   activo: true,
 }
 
-function getRoleLabel(rol) {
-  return ROLES.find((item) => item.value === rol)?.label ?? rol
+function getRoleLabel(idRol) {
+  return ROLES.find((item) => item.id === Number(idRol))?.label ?? "Sin rol"
 }
 
-function UsuarioForm({ form, editingId, error, onChange, onCancel, onSubmit }) {
+function formatDate(date) {
+  if (!date) return "Sin fecha"
+
+  return new Intl.DateTimeFormat("es-SV", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(date))
+}
+
+function UsuarioForm({
+  form,
+  editingId,
+  error,
+  isSubmitting,
+  onChange,
+  onCancel,
+  onSubmit,
+}) {
   return (
     <form onSubmit={onSubmit} className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4 mb-5">
@@ -94,13 +113,13 @@ function UsuarioForm({ form, editingId, error, onChange, onCancel, onSubmit }) {
         <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-600">
           Contrasena
           <input
-            required
+            required={!editingId}
             type="password"
             value={form.contrasena}
             onChange={(e) => onChange("contrasena", e.target.value)}
             className="h-10 rounded-lg border border-slate-200 px-3 text-slate-800 font-normal focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-            placeholder="Minimo 6 caracteres"
-            minLength={6}
+            placeholder={editingId ? "Nueva contrasena opcional" : "Minimo 6 caracteres"}
+            minLength={editingId && !form.contrasena ? undefined : 6}
           />
         </label>
 
@@ -139,10 +158,11 @@ function UsuarioForm({ form, editingId, error, onChange, onCancel, onSubmit }) {
       <div className="flex flex-col sm:flex-row gap-2 mt-5">
         <button
           type="submit"
+          disabled={isSubmitting}
           className="h-10 px-4 rounded-lg bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold flex items-center justify-center gap-2 transition-colors"
         >
           {editingId ? <CheckCircle2 size={17} /> : <Plus size={17} />}
-          {editingId ? "Guardar cambios" : "Crear usuario"}
+          {isSubmitting ? "Guardando..." : editingId ? "Guardar cambios" : "Crear usuario"}
         </button>
 
         {editingId && (
@@ -160,11 +180,48 @@ function UsuarioForm({ form, editingId, error, onChange, onCancel, onSubmit }) {
 }
 
 export default function Usuarios() {
-  const [usuarios, setUsuarios] = useState(() => getUsuarios())
+  const [usuarios, setUsuarios] = useState([])
   const [form, setForm] = useState(emptyForm)
   const [editingId, setEditingId] = useState(null)
   const [search, setSearch] = useState("")
   const [error, setError] = useState("")
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const refreshUsuarios = useCallback(async () => {
+    setIsLoading(true)
+
+    try {
+      setUsuarios(await getUsuarios())
+      setError("")
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    let ignore = false
+
+    getUsuarios()
+      .then((data) => {
+        if (!ignore) {
+          setUsuarios(data)
+          setError("")
+        }
+      })
+      .catch((err) => {
+        if (!ignore) setError(err.message)
+      })
+      .finally(() => {
+        if (!ignore) setIsLoading(false)
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [])
 
   const filteredUsuarios = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -172,17 +229,13 @@ export default function Usuarios() {
     if (!query) return usuarios
 
     return usuarios.filter((usuario) =>
-      `${usuario.nombre} ${usuario.apellido} ${usuario.correo} ${getRoleLabel(usuario.rol)}`
+      `${usuario.nombre} ${usuario.apellido} ${usuario.correo} ${getRoleLabel(usuario.id_rol)}`
         .toLowerCase()
         .includes(query)
     )
   }, [search, usuarios])
 
   const totalActivos = usuarios.filter((usuario) => usuario.activo).length
-
-  const refreshUsuarios = () => {
-    setUsuarios(getUsuarios())
-  }
 
   const handleChange = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }))
@@ -195,20 +248,23 @@ export default function Usuarios() {
     setError("")
   }
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault()
+    setIsSubmitting(true)
 
     try {
       if (editingId) {
-        updateUsuario(editingId, form)
+        await updateUsuario(editingId, form)
       } else {
-        createUsuario(form)
+        await createUsuario(form)
       }
 
-      refreshUsuarios()
+      await refreshUsuarios()
       resetForm()
     } catch (err) {
       setError(err.message)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -218,27 +274,35 @@ export default function Usuarios() {
       nombre: usuario.nombre,
       apellido: usuario.apellido,
       correo: usuario.correo,
-      contrasena: usuario.contrasena,
-      rol: usuario.rol,
-      activo: usuario.activo,
+      contrasena: "",
+      rol: getRoleValue(usuario.id_rol),
+      activo: usuario.activo === 1 || usuario.activo === true,
     })
     setError("")
   }
 
-  const handleToggleActivo = (id) => {
-    toggleUsuarioActivo(id)
-    refreshUsuarios()
+  const handleToggleActivo = async (usuario) => {
+    try {
+      await toggleUsuarioActivo(usuario)
+      await refreshUsuarios()
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     const confirmDelete = window.confirm("Seguro que deseas eliminar este usuario?")
 
     if (!confirmDelete) return
 
-    deleteUsuario(id)
-    refreshUsuarios()
+    try {
+      await deleteUsuario(id)
+      await refreshUsuarios()
 
-    if (editingId === id) resetForm()
+      if (editingId === id) resetForm()
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   return (
@@ -267,6 +331,7 @@ export default function Usuarios() {
         form={form}
         editingId={editingId}
         error={error}
+        isSubmitting={isSubmitting}
         onChange={handleChange}
         onCancel={resetForm}
         onSubmit={handleSubmit}
@@ -277,7 +342,7 @@ export default function Usuarios() {
           <div>
             <h2 className="text-lg font-semibold text-slate-900">Listado</h2>
             <p className="text-sm text-slate-500 mt-1">
-              {filteredUsuarios.length} usuario(s) encontrados.
+              {isLoading ? "Cargando usuarios..." : `${filteredUsuarios.length} usuario(s) encontrados.`}
             </p>
           </div>
 
@@ -324,7 +389,7 @@ export default function Usuarios() {
                   <td className="px-5 py-4 text-slate-600">{usuario.correo}</td>
                   <td className="px-5 py-4">
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
-                      {getRoleLabel(usuario.rol)}
+                      {getRoleLabel(usuario.id_rol)}
                     </span>
                   </td>
                   <td className="px-5 py-4">
@@ -339,7 +404,7 @@ export default function Usuarios() {
                       {usuario.activo ? "Activo" : "Inactivo"}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-slate-500">{usuario.fecha_creacion}</td>
+                  <td className="px-5 py-4 text-slate-500">{formatDate(usuario.fecha_creacion)}</td>
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-end gap-1">
                       <button
@@ -352,7 +417,7 @@ export default function Usuarios() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleToggleActivo(usuario.id_usuario)}
+                        onClick={() => handleToggleActivo(usuario)}
                         className="p-2 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
                         title={usuario.activo ? "Desactivar usuario" : "Activar usuario"}
                       >

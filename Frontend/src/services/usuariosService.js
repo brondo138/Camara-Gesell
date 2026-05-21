@@ -1,4 +1,4 @@
-const STORAGE_KEY = "gesell_usuarios"
+import api from "./api"
 
 export const ROLES = [
   { id: 1, value: "admin", label: "Administrador" },
@@ -6,133 +6,104 @@ export const ROLES = [
   { id: 3, value: "estudiante", label: "Practicante" },
 ]
 
-const usuariosIniciales = [
-  {
-    id_usuario: 1,
-    nombre: "Juan",
-    apellido: "Perez",
-    correo: "admin@universidad.edu",
-    contrasena: "admin123",
-    rol: "admin",
-    activo: true,
-    fecha_creacion: "2026-05-20",
-  },
-  {
-    id_usuario: 2,
-    nombre: "Ana",
-    apellido: "Martinez",
-    correo: "docente@universidad.edu",
-    contrasena: "docente123",
-    rol: "docente",
-    activo: true,
-    fecha_creacion: "2026-05-20",
-  },
-  {
-    id_usuario: 3,
-    nombre: "Carlos",
-    apellido: "Lopez",
-    correo: "practicante@universidad.edu",
-    contrasena: "practicante123",
-    rol: "estudiante",
-    activo: true,
-    fecha_creacion: "2026-05-20",
-  },
-]
-
-function readUsuarios() {
-  const saved = localStorage.getItem(STORAGE_KEY)
-
-  if (!saved) {
-    saveUsuarios(usuariosIniciales)
-    return usuariosIniciales
-  }
-
-  return JSON.parse(saved)
-}
-
-function saveUsuarios(usuarios) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(usuarios))
-}
-
 function normalizeCorreo(correo) {
   return correo.trim().toLowerCase()
 }
 
-function validateUsuario(data, usuarios, currentId) {
-  const correo = normalizeCorreo(data.correo)
-  const correoUsado = usuarios.some(
-    (usuario) =>
-      usuario.correo.toLowerCase() === correo &&
-      usuario.id_usuario !== currentId
-  )
+function getErrorMessage(error) {
+  if (!error.response) {
+    return "No se pudo conectar con el backend. Revisa que la API este corriendo en localhost:3000."
+  }
 
-  if (correoUsado) {
-    throw new Error("Ya existe un usuario con ese correo.")
+  return error.response?.data?.message ?? "No se pudo completar la accion."
+}
+
+export function getRoleValue(idRol) {
+  return ROLES.find((rol) => rol.id === Number(idRol))?.value ?? "estudiante"
+}
+
+export function getRoleId(value) {
+  return ROLES.find((rol) => rol.value === value)?.id ?? 3
+}
+
+export async function getUsuarios() {
+  try {
+    const response = await api.get("/usuarios")
+    return response.data.data
+  } catch (error) {
+    throw new Error(getErrorMessage(error), { cause: error })
   }
 }
 
-export function getUsuarios() {
-  return readUsuarios()
-}
+export async function createUsuario(data) {
+  try {
+    const response = await api.post("/usuarios", {
+      nombre: data.nombre.trim(),
+      apellido: data.apellido.trim(),
+      correo: normalizeCorreo(data.correo),
+      contrasena: data.contrasena,
+      id_rol: getRoleId(data.rol),
+    })
 
-export function createUsuario(data) {
-  const usuarios = readUsuarios()
-  validateUsuario(data, usuarios)
-
-  const nuevoUsuario = {
-    id_usuario: Date.now(),
-    nombre: data.nombre.trim(),
-    apellido: data.apellido.trim(),
-    correo: normalizeCorreo(data.correo),
-    contrasena: data.contrasena,
-    rol: data.rol,
-    activo: data.activo,
-    fecha_creacion: new Date().toISOString().slice(0, 10),
+    return response.data.data
+  } catch (error) {
+    throw new Error(getErrorMessage(error), { cause: error })
   }
-
-  const updated = [nuevoUsuario, ...usuarios]
-  saveUsuarios(updated)
-  return nuevoUsuario
 }
 
-export function updateUsuario(id, data) {
-  const usuarios = readUsuarios()
-  const userId = Number(id)
-  validateUsuario(data, usuarios, userId)
+export async function updateUsuario(id, data) {
+  try {
+    const response = await api.put(`/usuarios/${id}`, {
+      nombre: data.nombre.trim(),
+      apellido: data.apellido.trim(),
+      correo: normalizeCorreo(data.correo),
+      id_rol: getRoleId(data.rol),
+      activo: data.activo,
+    })
 
-  const updated = usuarios.map((usuario) =>
-    usuario.id_usuario === userId
-      ? {
-          ...usuario,
-          nombre: data.nombre.trim(),
-          apellido: data.apellido.trim(),
-          correo: normalizeCorreo(data.correo),
-          contrasena: data.contrasena,
-          rol: data.rol,
-          activo: data.activo,
-        }
-      : usuario
-  )
+    if (data.contrasena?.trim()) {
+      await updateUsuarioContrasena(id, data.contrasena)
+    }
 
-  saveUsuarios(updated)
+    return response.data.data
+  } catch (error) {
+    throw new Error(getErrorMessage(error), { cause: error })
+  }
 }
 
-export function toggleUsuarioActivo(id) {
-  const userId = Number(id)
-  const updated = readUsuarios().map((usuario) =>
-    usuario.id_usuario === userId
-      ? { ...usuario, activo: !usuario.activo }
-      : usuario
-  )
+export async function updateUsuarioContrasena(id, nuevaContrasena) {
+  try {
+    const response = await api.patch(`/usuarios/${id}/contrasena`, {
+      nuevaContrasena,
+    })
 
-  saveUsuarios(updated)
+    return response.data.data
+  } catch (error) {
+    throw new Error(getErrorMessage(error), { cause: error })
+  }
 }
 
-export function deleteUsuario(id) {
-  const userId = Number(id)
-  const updated = readUsuarios().filter(
-    (usuario) => usuario.id_usuario !== userId
-  )
+export async function toggleUsuarioActivo(usuario) {
+  try {
+    const response = await api.put(`/usuarios/${usuario.id_usuario}`, {
+      nombre: usuario.nombre,
+      apellido: usuario.apellido,
+      correo: usuario.correo,
+      id_rol: usuario.id_rol,
+      activo: !usuario.activo,
+    })
 
-  saveUsuarios(updated)
+    return response.data.data
+  } catch (error) {
+    throw new Error(getErrorMessage(error), { cause: error })
+  }
+}
+
+export async function deleteUsuario(id) {
+  try {
+    const response = await api.delete(`/usuarios/${id}`)
+    return response.data.data
+  } catch (error) {
+    throw new Error(getErrorMessage(error), { cause: error })
+  }
 }
