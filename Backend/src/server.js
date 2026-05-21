@@ -6,7 +6,12 @@ const routes = require('./routes/index.routes');
 
 const app = express();
 
-app.use(cors());
+// Configuración de CORS para permitir peticiones desde Vite
+app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true
+}));
+
 app.use(express.json());
 
 app.get('/', (req, res) => {
