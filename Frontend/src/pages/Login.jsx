@@ -66,7 +66,16 @@ const features = [
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function InputField({ id, label, type = "text", placeholder, icon, rightElement }) {
+function InputField({
+  id,
+  label,
+  type = "text",
+  placeholder,
+  icon,
+  rightElement,
+  value,
+  onChange,
+}) {
   return (
     <motion.div variants={fieldVariants} className="flex flex-col gap-1.5">
       <label
@@ -84,6 +93,8 @@ function InputField({ id, label, type = "text", placeholder, icon, rightElement 
         <input
           id={id}
           type={type}
+          value={value}
+          onChange={onChange}
           placeholder={placeholder}
           autoComplete={type === "password" ? "current-password" : "email"}
           className="
@@ -264,6 +275,8 @@ export default function Login() {
               id="email"
               label="Correo institucional"
               type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="usuario@universidad.edu"
               icon={<Mail size={17} />}
             />
@@ -272,6 +285,8 @@ export default function Login() {
               id="password"
               label="Contraseña"
               type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
               icon={<Lock size={17} />}
               rightElement={
