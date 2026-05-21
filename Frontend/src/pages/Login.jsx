@@ -138,15 +138,6 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const testLogin = (rol) => {
-    login({
-      id: 1,
-      nombre: "Juan Pérez",
-      rol,
-    });
-    navigate("/dashboard");
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -412,14 +403,21 @@ export default function Login() {
               </motion.button>
             </motion.div>
 
-            {error && (
-              <motion.p
-                variants={fieldVariants}
-                className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2"
-              >
-                {error}
-              </motion.p>
-            )}
+            {/* Error message */}
+            <AnimatePresence>
+              {error && (
+                <motion.p
+                  key="error"
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2 }}
+                  className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2"
+                >
+                  {error}
+                </motion.p>
+              )}
+            </AnimatePresence>
 
             {/* Divider */}
             <motion.div variants={fieldVariants} className="flex items-center gap-3 my-1">
@@ -428,19 +426,18 @@ export default function Login() {
               <div className="flex-1 h-px bg-slate-100" />
             </motion.div>
 
-            {/* SSO */}
+            {/* SSO — próximamente */}
             <motion.div variants={fieldVariants}>
               <motion.button
                 type="button"
-                whileHover={{ scale: 1.01 }}
-                whileTap={{ scale: 0.98 }}
+                disabled
                 className="
                   w-full h-10 rounded-xl
-                  bg-slate-50 hover:bg-slate-100
+                  bg-slate-50
                   border border-slate-200
-                  text-slate-500 text-xs font-medium
+                  text-slate-400 text-xs font-medium
                   flex items-center justify-center gap-2
-                  transition-colors duration-150
+                  cursor-not-allowed
                 "
               >
                 <GraduationCap size={16} className="text-slate-400" />
@@ -452,57 +449,6 @@ export default function Login() {
             </motion.div>
 
             {/* Footer */}
-            {/* Login de prueba */}
-            <motion.div
-              variants={fieldVariants}
-              className="flex flex-col gap-2 mt-2"
-            >
-              <p className="text-[11px] text-slate-400 text-center">
-                Acceso rápido para pruebas
-              </p>
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => testLogin("admin")}
-                  className="
-                    flex-1 h-9 rounded-lg
-                    bg-red-500 hover:bg-red-600
-                    text-white text-xs font-medium
-                    transition-colors
-                  "
-                >
-                  Admin
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => testLogin("docente")}
-                  className="
-                    flex-1 h-9 rounded-lg
-                    bg-amber-500 hover:bg-amber-600
-                    text-white text-xs font-medium
-                    transition-colors
-                  "
-                >
-                  Docente
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => testLogin("estudiante")}
-                  className="
-                    flex-1 h-9 rounded-lg
-                    bg-emerald-500 hover:bg-emerald-600
-                    text-white text-xs font-medium
-                    transition-colors
-                  "
-                >
-                  Estudiante
-                </button>
-              </div>
-            </motion.div>
-
             <motion.p
               variants={fieldVariants}
               className="text-center text-[10px] text-slate-400 leading-relaxed mt-1"
