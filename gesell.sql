@@ -1,4 +1,4 @@
-CREATE DATABASE gesell;
+CREATE DATABASE IF NOT EXISTS gesell;
 USE gesell;
 
 -- Roles del sistema
