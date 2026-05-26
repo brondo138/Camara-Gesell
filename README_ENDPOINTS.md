@@ -684,6 +684,491 @@ Más adelante se cambiara este endpoint para hacer una desactivación lógica:
 
 ---
 
+# Módulo de cámaras de Gesell
+
+Este módulo permite crear, listar, actualizar, activar, desactivar y eliminar cámaras de Gesell registradas en el sistema.
+
+---
+
+## Obtener todas las cámaras
+
+### Endpoint
+
+```txt
+GET /api/camaras
+```
+
+### URL completa
+
+```txt
+http://localhost:3000/api/camaras
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Cámaras de Gesell obtenidas correctamente",
+  "data": [
+    {
+      "id_camara": 1,
+      "nombre": "Cámara Gesell 1",
+      "ubicacion": "Edificio de Psicología, segundo nivel",
+      "descripcion": "Cámara destinada para prácticas supervisadas",
+      "activa": 1
+    }
+  ]
+}
+```
+
+---
+
+## Obtener cámara por ID
+
+### Endpoint
+
+```txt
+GET /api/camaras/:id
+```
+
+### Ejemplo
+
+```txt
+GET http://localhost:3000/api/camaras/1
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Cámara de Gesell obtenida correctamente",
+  "data": {
+    "id_camara": 1,
+    "nombre": "Cámara Gesell 1",
+    "ubicacion": "Edificio de Psicología, segundo nivel",
+    "descripcion": "Cámara destinada para prácticas supervisadas",
+    "activa": 1
+  }
+}
+```
+
+### Si la cámara no existe
+
+```json
+{
+  "success": false,
+  "message": "La cámara de Gesell no existe"
+}
+```
+
+---
+
+## Crear cámara de Gesell
+
+### Endpoint
+
+```txt
+POST /api/camaras
+```
+
+### URL completa
+
+```txt
+http://localhost:3000/api/camaras
+```
+
+### Body JSON
+
+```json
+{
+  "nombre": "Cámara Gesell 1",
+  "ubicacion": "Edificio de Psicología, segundo nivel",
+  "descripcion": "Cámara destinada para prácticas supervisadas",
+  "activa": true
+}
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Cámara de Gesell creada correctamente",
+  "data": {
+    "id_camara": 1,
+    "nombre": "Cámara Gesell 1",
+    "ubicacion": "Edificio de Psicología, segundo nivel",
+    "descripcion": "Cámara destinada para prácticas supervisadas",
+    "activa": 1
+  }
+}
+```
+
+### Campos obligatorios
+
+Para crear una cámara, el único campo obligatorio es:
+
+```json
+{
+  "nombre": "Cámara Gesell 1"
+}
+```
+
+Los campos `ubicacion`, `descripcion` y `activa` son opcionales.
+
+Si no se envía el campo `activa`, por defecto se guardará como `true`.
+
+---
+
+## Actualizar cámara de Gesell
+
+### Endpoint
+
+```txt
+PUT /api/camaras/:id
+```
+
+### Ejemplo
+
+```txt
+PUT http://localhost:3000/api/camaras/1
+```
+
+### Body JSON
+
+```json
+{
+  "nombre": "Cámara Gesell Principal",
+  "ubicacion": "Edificio de Psicología, aula 204",
+  "descripcion": "Cámara principal para entrevistas y evaluaciones",
+  "activa": true
+}
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Cámara de Gesell actualizada correctamente",
+  "data": {
+    "id_camara": 1,
+    "nombre": "Cámara Gesell Principal",
+    "ubicacion": "Edificio de Psicología, aula 204",
+    "descripcion": "Cámara principal para entrevistas y evaluaciones",
+    "activa": 1
+  }
+}
+```
+
+### Campos obligatorios
+
+Para actualizar una cámara se debe enviar al menos el campo `nombre`.
+
+```json
+{
+  "nombre": "Cámara Gesell Principal",
+  "ubicacion": "Edificio de Psicología, aula 204",
+  "descripcion": "Cámara principal para entrevistas y evaluaciones",
+  "activa": true
+}
+```
+
+---
+
+## Cambiar estado de cámara de Gesell
+
+Este endpoint permite activar o desactivar una cámara sin actualizar todos sus datos.
+
+### Endpoint
+
+```txt
+PATCH /api/camaras/:id/estado
+```
+
+### Ejemplo
+
+```txt
+PATCH http://localhost:3000/api/camaras/1/estado
+```
+
+### Body JSON para desactivar
+
+```json
+{
+  "activa": false
+}
+```
+
+### Body JSON para activar
+
+```json
+{
+  "activa": true
+}
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Estado de la cámara actualizado correctamente",
+  "data": {
+    "id_camara": 1,
+    "nombre": "Cámara Gesell Principal",
+    "ubicacion": "Edificio de Psicología, aula 204",
+    "descripcion": "Cámara principal para entrevistas y evaluaciones",
+    "activa": 0
+  }
+}
+```
+
+### Valores permitidos
+
+El backend acepta los siguientes valores para el campo `activa`:
+
+```json
+{
+  "activa": true
+}
+```
+
+```json
+{
+  "activa": false
+}
+```
+
+También acepta valores equivalentes como:
+
+```json
+{
+  "activa": 1
+}
+```
+
+```json
+{
+  "activa": 0
+}
+```
+
+```json
+{
+  "activa": "true"
+}
+```
+
+```json
+{
+  "activa": "false"
+}
+```
+
+### Errores comunes
+
+Si no se envía el campo `activa`:
+
+```json
+{
+  "success": false,
+  "message": "El estado de la cámara es obligatorio"
+}
+```
+
+Si la cámara no existe:
+
+```json
+{
+  "success": false,
+  "message": "La cámara de Gesell no existe"
+}
+```
+
+---
+
+## Eliminar cámara de Gesell
+
+### Endpoint
+
+```txt
+DELETE /api/camaras/:id
+```
+
+### Ejemplo
+
+```txt
+DELETE http://localhost:3000/api/camaras/1
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Cámara de Gesell eliminada correctamente"
+}
+```
+
+### Nota importante
+
+Actualmente este endpoint elimina la cámara de Gesell de la base de datos.
+
+Si la cámara tiene reservas relacionadas, MySQL puede impedir la eliminación por las llaves foráneas.
+
+---
+
+# Ejemplos de consumo desde frontend con fetch para cámaras de Gesell
+
+## Obtener cámaras de Gesell
+
+```js
+const obtenerCamaras = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/camaras');
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Obtener cámara por ID
+
+```js
+const obtenerCamaraPorId = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/camaras/1');
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Crear cámara de Gesell
+
+```js
+const crearCamara = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/camaras', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      nombre: 'Cámara Gesell 1',
+      ubicacion: 'Edificio de Psicología, segundo nivel',
+      descripcion: 'Cámara destinada para prácticas supervisadas',
+      activa: true
+    })
+  });
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Actualizar cámara de Gesell
+
+```js
+const actualizarCamara = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/camaras/1', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      nombre: 'Cámara Gesell Principal',
+      ubicacion: 'Edificio de Psicología, aula 204',
+      descripcion: 'Cámara principal para entrevistas y evaluaciones',
+      activa: true
+    })
+  });
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Cambiar estado de cámara de Gesell
+
+```js
+const cambiarEstadoCamara = async (idCamara, nuevoEstado) => {
+  const respuesta = await fetch(`http://localhost:3000/api/camaras/${idCamara}/estado`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      activa: nuevoEstado
+    })
+  });
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+### Ejemplo para activar
+
+```js
+cambiarEstadoCamara(1, true);
+```
+
+### Ejemplo para desactivar
+
+```js
+cambiarEstadoCamara(1, false);
+```
+
+### Ejemplo para alternar el estado actual
+
+```js
+const alternarEstadoCamara = async (camara) => {
+  const respuesta = await fetch(`http://localhost:3000/api/camaras/${camara.id_camara}/estado`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      activa: !Boolean(camara.activa)
+    })
+  });
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Eliminar cámara de Gesell
+
+```js
+const eliminarCamara = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/camaras/1', {
+    method: 'DELETE'
+  });
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
 # Pruebas en Postman
 
 Para probar la API en Postman:
