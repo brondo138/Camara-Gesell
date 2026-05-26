@@ -9,6 +9,7 @@ import Usuarios     from "../pages/Usuarios"
 import Camaras      from "../pages/Camaras"
 import Reservas     from "../pages/Reservas"
 import Sesiones     from "../pages/Sesiones"
+import DetalleSesion from "../pages/DetalleSesion"
 import Grabaciones  from "../pages/Grabaciones"
 import Reportes     from "../pages/Reportes"
 import Perfil       from "../pages/Perfil"
@@ -32,7 +33,7 @@ export default function AppRouter() {
             <Route path="/camaras"      element={<Camaras />} />
             <Route path="/reservas"     element={<Reservas />} />
             <Route path="/sesiones"     element={<Sesiones />} />
-            <Route path="/sesiones/:id" element={<div>DetalleSesion</div>} />
+            <Route path="/sesiones/:id" element={<DetalleSesion />} />
             <Route path="/perfil"       element={<Perfil />} />
 
             {/* Solo admin */}
