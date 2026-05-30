@@ -1,38 +1,26 @@
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useNavigate } from "react-router-dom"
 import {
-  CalendarCheck, Plus, Search, Filter,
+  CalendarCheck, Plus, Search,
   CheckCircle2, XCircle, AlertCircle, Clock,
-  ChevronRight, Camera, Users, Eye,
-  X, Check
+  Camera, Eye, X, Check, Loader2, AlertTriangle
 } from "lucide-react"
 import { useAuth } from "../hooks/useAuth"
+import { getReservas, cambiarEstadoReserva,  } from "../services/reservasService"
 
-// ─── Mock data ────────────────────────────────────────────────────────────────
-
-const MOCK_RESERVAS = [
-  { id_reserva: 1, solicitante: "María López",   id_solicitante: 10, camara: "Sala A", id_camara: 1, fecha: "2026-05-21", hora_inicio: "08:00", hora_fin: "10:00", motivo: "Sesión de terapia individual con paciente externo.", estado: "pendiente", rol_solicitante: "docente" },
-  { id_reserva: 2, solicitante: "Carlos Rivas",  id_solicitante: 11, camara: "Sala B", id_camara: 2, fecha: "2026-05-21", hora_inicio: "10:00", hora_fin: "12:00", motivo: "Práctica supervisada — evaluación psicológica.",    estado: "aprobada",  rol_solicitante: "estudiante" },
-  { id_reserva: 3, solicitante: "Ana Martínez",  id_solicitante: 12, camara: "Sala A", id_camara: 1, fecha: "2026-05-22", hora_inicio: "14:00", hora_fin: "16:00", motivo: "Terapia familiar, caso #12.",                        estado: "aprobada",  rol_solicitante: "docente" },
-  { id_reserva: 4, solicitante: "Pedro Salinas", id_solicitante: 13, camara: "Sala C", id_camara: 3, fecha: "2026-05-22", hora_inicio: "16:00", hora_fin: "17:00", motivo: "Observación de sesión grupal.",                     estado: "rechazada", rol_solicitante: "estudiante" },
-  { id_reserva: 5, solicitante: "Laura Fuentes", id_solicitante: 14, camara: "Sala B", id_camara: 2, fecha: "2026-05-23", hora_inicio: "09:00", hora_fin: "11:00", motivo: "Evaluación de competencias clínicas.",               estado: "pendiente", rol_solicitante: "docente" },
-  { id_reserva: 6, solicitante: "María López",   id_solicitante: 10, camara: "Sala D", id_camara: 4, fecha: "2026-05-24", hora_inicio: "08:00", hora_fin: "09:00", motivo: "Seguimiento de caso clínico.",                      estado: "aprobada",  rol_solicitante: "docente" },
-]
-
-// IDs mock por rol para filtrar "mis reservas"
-const MOCK_USER_ID = { admin: 0, docente: 10, estudiante: 11 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 const ESTADO_CONFIG = {
-  pendiente: { label: "Pendiente", icon: AlertCircle,  cls: "bg-amber-50 text-amber-700 border-amber-200"       },
-  aprobada:  { label: "Aprobada",  icon: CheckCircle2, cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  rechazada: { label: "Rechazada", icon: XCircle,      cls: "bg-red-50 text-red-700 border-red-200"             },
+  Pendiente: { label: "Pendiente", icon: AlertCircle,  cls: "bg-amber-50 text-amber-700 border-amber-200"       },
+  Aprobada:  { label: "Aprobada",  icon: CheckCircle2, cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  Rechazada: { label: "Rechazada", icon: XCircle,      cls: "bg-red-50 text-red-700 border-red-200"             },
+  Cancelada: { label: "Cancelada", icon: XCircle,      cls: "bg-slate-100 text-slate-500 border-slate-200"      },
+  Finalizada:{ label: "Finalizada",icon: CheckCircle2, cls: "bg-blue-50 text-blue-700 border-blue-200"          },
 }
 
 function EstadoBadge({ estado }) {
-  const cfg = ESTADO_CONFIG[estado] ?? ESTADO_CONFIG.pendiente
+  const cfg = ESTADO_CONFIG[estado] ?? ESTADO_CONFIG.Pendiente
   const Icon = cfg.icon
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${cfg.cls}`}>
@@ -42,9 +30,16 @@ function EstadoBadge({ estado }) {
 }
 
 function formatFecha(iso) {
-  const [y, m, d] = iso.split("-")
+  if (!iso) return "—"
+  const [y, m, d] = iso.slice(0, 10).split("-")
   const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"]
-  return `${parseInt(d)} ${meses[parseInt(m)-1]}. ${y}`
+  return `${parseInt(d)} ${meses[parseInt(m) - 1]}. ${y}`
+}
+
+function formatHora(time) {
+  if (!time) return "—"
+  // MySQL devuelve TIME como "HH:MM:SS", mostramos solo HH:MM
+  return time.slice(0, 5)
 }
 
 const containerVariants = {
@@ -56,9 +51,9 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
 }
 
-// ─── Modal detalle / aprobar-rechazar (Admin) ─────────────────────────────────
+// ─── MODAL DETALLE ────────────────────────────────────────────────────────────
 
-function DetalleModal({ reserva, onClose, onAprobar, onRechazar, onCancelar, isAdmin }) {
+function DetalleModal({ reserva, isAdmin, onClose, onAprobar, onRechazar, onCancelar }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div
@@ -68,8 +63,8 @@ function DetalleModal({ reserva, onClose, onAprobar, onRechazar, onCancelar, isA
       />
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1,    y: 0 }}
+        exit={{    opacity: 0, scale: 0.96, y: 8 }}
         transition={{ duration: 0.2 }}
         className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md z-10 overflow-hidden"
       >
@@ -92,19 +87,17 @@ function DetalleModal({ reserva, onClose, onAprobar, onRechazar, onCancelar, isA
             <span className="text-xs text-slate-400">Estado actual</span>
             <EstadoBadge estado={reserva.estado} />
           </div>
-
           {[
-            { label: "Solicitante",  value: `${reserva.solicitante} (${reserva.rol_solicitante})` },
-            { label: "Cámara",       value: reserva.camara },
-            { label: "Fecha",        value: formatFecha(reserva.fecha) },
-            { label: "Horario",      value: `${reserva.hora_inicio} – ${reserva.hora_fin}` },
+            { label: "Solicitante", value: `${reserva.nombre_solicitante} ${reserva.apellido_solicitante} (${reserva.rol_solicitante})` },
+            { label: "Cámara",      value: reserva.camara },
+            { label: "Fecha",       value: formatFecha(reserva.fecha) },
+            { label: "Horario",     value: `${formatHora(reserva.hora_inicio)} – ${formatHora(reserva.hora_fin)}` },
           ].map(({ label, value }) => (
             <div key={label} className="flex justify-between items-start gap-4">
               <span className="text-xs text-slate-400 shrink-0">{label}</span>
               <span className="text-xs text-slate-700 font-medium text-right">{value}</span>
             </div>
           ))}
-
           <div className="pt-1">
             <span className="text-xs text-slate-400 block mb-1.5">Motivo</span>
             <p className="text-xs text-slate-700 bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-100 leading-relaxed">
@@ -113,10 +106,9 @@ function DetalleModal({ reserva, onClose, onAprobar, onRechazar, onCancelar, isA
           </div>
         </div>
 
-        {/* Footer con acciones */}
+        {/* Footer */}
         <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex flex-wrap gap-2 justify-end">
-          {/* Admin puede aprobar/rechazar si está pendiente */}
-          {isAdmin && reserva.estado === "pendiente" && (
+          {isAdmin && reserva.estado === "Pendiente" && (
             <>
               <button
                 onClick={() => { onRechazar(reserva); onClose() }}
@@ -132,9 +124,7 @@ function DetalleModal({ reserva, onClose, onAprobar, onRechazar, onCancelar, isA
               </button>
             </>
           )}
-
-          {/* Cancelar si está pendiente (dueño o admin) */}
-          {reserva.estado === "pendiente" && (
+          {reserva.estado === "Pendiente" && (
             <button
               onClick={() => { onCancelar(reserva); onClose() }}
               className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-semibold transition-colors"
@@ -142,8 +132,7 @@ function DetalleModal({ reserva, onClose, onAprobar, onRechazar, onCancelar, isA
               <X size={14} /> Cancelar reserva
             </button>
           )}
-
-          {reserva.estado !== "pendiente" && (
+          {reserva.estado !== "Pendiente" && (
             <button onClick={onClose} className="h-9 px-4 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-semibold transition-colors">
               Cerrar
             </button>
@@ -154,52 +143,105 @@ function DetalleModal({ reserva, onClose, onAprobar, onRechazar, onCancelar, isA
   )
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
 
 export default function Reservas() {
-  const { user } = useAuth()
-  const navigate = useNavigate()
-  const isAdmin = user?.rol === "admin"
+  const { user }    = useAuth()
+  const navigate    = useNavigate()
+  const isAdmin     = user?.rol === "admin"
 
-  const [reservas, setReservas] = useState(MOCK_RESERVAS)
-  const [search, setSearch]     = useState("")
+  const [reservas, setReservas]       = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState("")
+  const [search, setSearch]           = useState("")
   const [filtroEstado, setFiltroEstado] = useState("todos")
-  const [selected, setSelected] = useState(null)
+  const [selected, setSelected]       = useState(null)
+  const [toasts, setToasts]           = useState([])
 
-  // Filtrar por rol
-  const misReservas = isAdmin
-    ? reservas
-    : reservas.filter(r => r.id_solicitante === MOCK_USER_ID[user?.rol])
+  // ── Carga inicial ────────────────────────────────────────────────────────
+  useEffect(() => {
+    cargarReservas()
+  }, [])
 
-  // Aplicar búsqueda y filtro de estado
-  const filtered = misReservas.filter(r => {
-    const matchSearch =
-      r.solicitante.toLowerCase().includes(search.toLowerCase()) ||
-      r.camara.toLowerCase().includes(search.toLowerCase()) ||
-      r.motivo.toLowerCase().includes(search.toLowerCase())
-    const matchEstado = filtroEstado === "todos" || r.estado === filtroEstado
-    return matchSearch && matchEstado
-  })
-
-  // Contadores para los filtros
-  const counts = {
-    todos:     misReservas.length,
-    pendiente: misReservas.filter(r => r.estado === "pendiente").length,
-    aprobada:  misReservas.filter(r => r.estado === "aprobada").length,
-    rechazada: misReservas.filter(r => r.estado === "rechazada").length,
+  async function cargarReservas() {
+    setLoading(true)
+    setError("")
+    try {
+      const data = await getReservas(user?.id, user?.id_rol)
+      setReservas(data)
+    } catch (err) {
+      setError(err?.response?.data?.message ?? "Error al cargar las reservas.")
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleAprobar  = (r) => setReservas(prev => prev.map(x => x.id_reserva === r.id_reserva ? { ...x, estado: "aprobada"  } : x))
-  const handleRechazar = (r) => setReservas(prev => prev.map(x => x.id_reserva === r.id_reserva ? { ...x, estado: "rechazada" } : x))
-  const handleCancelar = (r) => setReservas(prev => prev.filter(x => x.id_reserva !== r.id_reserva))
+  // ── Toasts ───────────────────────────────────────────────────────────────
+  function addToast(message, type = "success") {
+    const id = Date.now()
+    setToasts(prev => [...prev, { id, message, type }])
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500)
+  }
+
+  // ── Acciones ─────────────────────────────────────────────────────────────
+  async function handleAprobar(reserva) {
+    try {
+      const actualizada = await cambiarEstadoReserva(reserva.id_reserva, "Aprobada")
+      setReservas(prev => prev.map(r => r.id_reserva === actualizada.id_reserva ? actualizada : r))
+      addToast("Reserva aprobada correctamente.")
+    } catch (err) {
+      addToast(err?.response?.data?.message ?? "Error al aprobar la reserva.", "error")
+    }
+  }
+
+  async function handleRechazar(reserva) {
+    try {
+      const actualizada = await cambiarEstadoReserva(reserva.id_reserva, "Rechazada")
+      setReservas(prev => prev.map(r => r.id_reserva === actualizada.id_reserva ? actualizada : r))
+      addToast("Reserva rechazada.", "warning")
+    } catch (err) {
+      addToast(err?.response?.data?.message ?? "Error al rechazar la reserva.", "error")
+    }
+  }
+
+  async function handleCancelar(reserva) {
+    try {
+      const actualizada = await cambiarEstadoReserva(reserva.id_reserva, "Cancelada")
+      setReservas(prev => prev.map(r => r.id_reserva === actualizada.id_reserva ? actualizada : r))
+      addToast("Reserva cancelada.", "warning")
+    } catch (err) {
+      addToast(err?.response?.data?.message ?? "Error al cancelar la reserva.", "error")
+    }
+  }
+
+  // ── Filtrado ─────────────────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    return reservas.filter(r => {
+      const solicitante = `${r.nombre_solicitante} ${r.apellido_solicitante}`.toLowerCase()
+      const matchSearch =
+        solicitante.includes(search.toLowerCase()) ||
+        r.camara.toLowerCase().includes(search.toLowerCase()) ||
+        (r.motivo ?? "").toLowerCase().includes(search.toLowerCase())
+      const matchEstado = filtroEstado === "todos" || r.estado === filtroEstado
+      return matchSearch && matchEstado
+    })
+  }, [reservas, search, filtroEstado])
+
+  const counts = useMemo(() => ({
+    todos:     reservas.length,
+    Pendiente: reservas.filter(r => r.estado === "Pendiente").length,
+    Aprobada:  reservas.filter(r => r.estado === "Aprobada").length,
+    Rechazada: reservas.filter(r => r.estado === "Rechazada").length,
+  }), [reservas])
 
   const FILTROS = [
-    { key: "todos",     label: "Todas"     },
-    { key: "pendiente", label: "Pendientes" },
-    { key: "aprobada",  label: "Aprobadas" },
-    { key: "rechazada", label: "Rechazadas" },
+    { key: "todos",     label: "Todas"      },
+    { key: "Pendiente", label: "Pendientes" },
+    { key: "Aprobada",  label: "Aprobadas"  },
+    { key: "Rechazada", label: "Rechazadas" },
   ]
 
+  // ─── RENDER ───────────────────────────────────────────────────────────────
   return (
     <>
       <motion.div
@@ -219,14 +261,13 @@ export default function Reservas() {
           <motion.button
             whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
             onClick={() => navigate("/reservas/nueva")}
-            className="flex items-center gap-2 h-9 px-4 rounded-xl bg-blue-700 hover:bg-blue-800
-              text-white text-sm font-semibold transition-colors shadow-sm shrink-0"
+            className="flex items-center gap-2 h-9 px-4 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors shadow-sm shrink-0"
           >
             <Plus size={16} /> Nueva reserva
           </motion.button>
         </motion.div>
 
-        {/* Filtros de estado */}
+        {/* Filtros */}
         <motion.div variants={itemVariants} className="flex items-center gap-2 flex-wrap">
           {FILTROS.map(f => (
             <button
@@ -240,12 +281,10 @@ export default function Reservas() {
               {f.label}
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold
                 ${filtroEstado === f.key ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"}`}>
-                {counts[f.key]}
+                {counts[f.key] ?? 0}
               </span>
             </button>
           ))}
-
-          {/* Buscador */}
           <div className="relative ml-auto">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
@@ -268,7 +307,29 @@ export default function Reservas() {
             <span className="text-[11px] text-slate-400">{filtered.length} resultado{filtered.length !== 1 ? "s" : ""}</span>
           </div>
 
-          {filtered.length === 0 ? (
+          {/* Estado: cargando */}
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+              <Loader2 className="w-7 h-7 animate-spin mb-2" />
+              <p className="text-sm">Cargando reservas…</p>
+            </div>
+          )}
+
+          {/* Estado: error */}
+          {!loading && error && (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-50 border border-red-200 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+              </div>
+              <p className="text-sm text-slate-600">{error}</p>
+              <button onClick={cargarReservas} className="text-sm text-blue-600 hover:underline font-medium">
+                Reintentar
+              </button>
+            </div>
+          )}
+
+          {/* Estado: vacío */}
+          {!loading && !error && filtered.length === 0 && (
             <div className="py-14 text-center">
               <CalendarCheck size={32} className="text-slate-200 mx-auto mb-3" />
               <p className="text-sm text-slate-400">No hay reservas que mostrar.</p>
@@ -279,7 +340,10 @@ export default function Reservas() {
                 Crear una nueva reserva
               </button>
             </div>
-          ) : (
+          )}
+
+          {/* Tabla de datos */}
+          {!loading && !error && filtered.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -304,10 +368,10 @@ export default function Reservas() {
                     >
                       {isAdmin && (
                         <td className="px-5 py-3.5">
-                          <div>
-                            <p className="font-medium text-slate-800 text-sm">{r.solicitante}</p>
-                            <p className="text-[11px] text-slate-400 capitalize">{r.rol_solicitante}</p>
-                          </div>
+                          <p className="font-medium text-slate-800 text-sm">
+                            {r.nombre_solicitante} {r.apellido_solicitante}
+                          </p>
+                          <p className="text-[11px] text-slate-400 capitalize">{r.rol_solicitante}</p>
                         </td>
                       )}
                       <td className="px-5 py-3.5">
@@ -318,11 +382,13 @@ export default function Reservas() {
                           <span className="font-medium text-slate-700 text-sm">{r.camara}</span>
                         </div>
                       </td>
-                      <td className="px-4 py-3.5 text-slate-500 text-xs hidden sm:table-cell">{formatFecha(r.fecha)}</td>
+                      <td className="px-4 py-3.5 text-slate-500 text-xs hidden sm:table-cell">
+                        {formatFecha(r.fecha)}
+                      </td>
                       <td className="px-4 py-3.5 hidden md:table-cell">
                         <div className="flex items-center gap-1.5 text-slate-500 text-xs">
                           <Clock size={11} className="text-slate-300" />
-                          {r.hora_inicio} – {r.hora_fin}
+                          {formatHora(r.hora_inicio)} – {formatHora(r.hora_fin)}
                         </div>
                       </td>
                       <td className="px-4 py-3.5"><EstadoBadge estado={r.estado} /></td>
@@ -353,6 +419,37 @@ export default function Reservas() {
           />
         )}
       </AnimatePresence>
+
+      {/* Toasts */}
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map(t => (
+            <Toast key={t.id} message={t.message} type={t.type} />
+          ))}
+        </AnimatePresence>
+      </div>
     </>
+  )
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function Toast({ message, type }) {
+  const styles = {
+    success: "bg-emerald-600 text-white",
+    warning: "bg-amber-500 text-white",
+    error:   "bg-red-500 text-white",
+  }
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0,  scale: 1    }}
+      exit={{    opacity: 0, y: 8,  scale: 0.95 }}
+      className={`pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-sm font-medium ${styles[type] ?? styles.success}`}
+    >
+      {type === "error"   && <AlertTriangle className="w-4 h-4 flex-shrink-0" />}
+      {type === "success" && <Check className="w-4 h-4 flex-shrink-0" />}
+      {type === "warning" && <XCircle className="w-4 h-4 flex-shrink-0" />}
+      {message}
+    </motion.div>
   )
 }
