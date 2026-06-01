@@ -1,4 +1,5 @@
 const reservasRepository = require('../repositories/reservas.repository');
+const sesionesRepository = require('../repositories/sesiones.repository');
 
 const ESTADOS_VALIDOS = ['Pendiente', 'Aprobada', 'Rechazada', 'Cancelada', 'Finalizada'];
 
@@ -78,6 +79,21 @@ const cambiarEstadoReserva = async (id_reserva, estado) => {
     }
 
     await reservasRepository.cambiarEstadoReserva(id_reserva, estado);
+
+    // Al aprobar → crear sesión automáticamente si no existe ya una
+    if (estado === 'Aprobada') {
+        const sesionExistente = await sesionesRepository.obtenerSesionPorReserva(id_reserva);
+        if (!sesionExistente) {
+            await sesionesRepository.crearSesion({
+                id_reserva,
+                titulo:            reserva.motivo,
+                descripcion:       null,
+                tipo_sesion:       'Entrevista',
+                fecha_realizacion: reserva.fecha
+            });
+        }
+    }
+
     return await reservasRepository.obtenerReservaPorId(id_reserva);
 };
 

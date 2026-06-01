@@ -77,6 +77,32 @@ CREATE TABLE grabaciones (
     FOREIGN KEY (id_sesion) REFERENCES sesiones(id_sesion)
 );
 
+
+-- Modificar grabaciones para soportar etiquetas
+-- 1. Tabla de etiquetas
+CREATE TABLE IF NOT EXISTS etiquetas (
+    id_etiqueta INT AUTO_INCREMENT PRIMARY KEY,
+    nombre      VARCHAR(50) NOT NULL UNIQUE
+);
+ 
+-- 2. Relación grabaciones ↔ etiquetas (N:M)
+CREATE TABLE IF NOT EXISTS grabaciones_etiquetas (
+    id_grabacion INT NOT NULL,
+    id_etiqueta  INT NOT NULL,
+    PRIMARY KEY (id_grabacion, id_etiqueta),
+    FOREIGN KEY (id_grabacion) REFERENCES grabaciones(id_grabacion) ON DELETE CASCADE,
+    FOREIGN KEY (id_etiqueta)  REFERENCES etiquetas(id_etiqueta)    ON DELETE CASCADE
+);
+ 
+-- 3. Etiquetas predefinidas
+INSERT IGNORE INTO etiquetas (nombre) VALUES
+    ('Evaluación'),
+    ('Terapia familiar'),
+    ('Práctica supervisada'),
+    ('Entrevista clínica'),
+    ('Seguimiento'),
+    ('Supervisión'),
+    ('Otro');
 -- observacion sobre la grabacion
 CREATE TABLE observaciones (
     id_observacion INT AUTO_INCREMENT PRIMARY KEY,

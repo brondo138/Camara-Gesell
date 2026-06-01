@@ -92,6 +92,12 @@ const obtenerSesionPorId = async (id_sesion) => {
     return rows[0];
 };
 
+const obtenerSesionPorReserva = async (id_reserva) => {
+    const query = `SELECT id_sesion FROM sesiones WHERE id_reserva = ? LIMIT 1;`;
+    const [rows] = await pool.query(query, [id_reserva]);
+    return rows[0];
+};
+
 const crearSesion = async (sesion) => {
     const { id_reserva, titulo, descripcion, tipo_sesion, fecha_realizacion } = sesion;
     const query = `
@@ -135,6 +141,7 @@ module.exports = {
     obtenerSesiones,
     obtenerSesionesPorUsuario,
     obtenerSesionPorId,
+    obtenerSesionPorReserva,
     crearSesion,
     cambiarEstadoSesion,
     actualizarSesion
