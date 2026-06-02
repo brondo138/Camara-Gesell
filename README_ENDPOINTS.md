@@ -1171,20 +1171,25 @@ const eliminarCamara = async () => {
 
 # Módulo de reservas
 
-Este módulo permite crear, listar, actualizar, cambiar estado y eliminar reservas de cámaras de Gesell.
+Este módulo permite crear, listar, consultar, cambiar estado y eliminar reservas de cámaras de Gesell.
 
-Las reservas pueden ser realizadas por administradores, docentes y practicantes. Todas las reservas nuevas se crean inicialmente con estado `Pendiente`, incluso si son creadas por un administrador.
+Las reservas están relacionadas con una cámara, un usuario solicitante y un grupo.
+Toda reserva nueva se crea inicialmente con estado `Pendiente`.
 
 ---
 
 ## Reglas principales del módulo
 
-- Toda reserva nueva se guarda como `Pendiente`.
-- Una cámara no puede reservarse si ya tiene una reserva `Pendiente` o `Aprobada` en la misma fecha y en un horario que se cruce.
-- Las reservas con estado `Rechazada`, `Cancelada` o `Finalizada` no bloquean horarios.
-- Solo el administrador puede aprobar, rechazar o finalizar reservas.
-- Docentes y practicantes solo pueden cancelar sus propias reservas si están en estado `Pendiente`.
-- Una reserva solo puede eliminarse si está en estado `Cancelada`.
+* Toda reserva nueva se guarda como `Pendiente`.
+* Una reserva debe estar asociada a un grupo.
+* El usuario solicitante debe pertenecer al grupo de la reserva.
+* Si el usuario pertenece solamente a un grupo, el backend puede asignar automáticamente el `id_grupo`.
+* Si el usuario pertenece a más de un grupo, el frontend debe enviar el campo `id_grupo`.
+* Un administrador no puede crear reservas como solicitante de grupo.
+* Una cámara no puede reservarse si ya tiene una reserva `Pendiente`, `Aprobada` o `Finalizada` en la misma fecha y en un horario que se cruce.
+* Las reservas con estado `Rechazada` o `Cancelada` no bloquean horarios.
+* Al aprobar una reserva, el sistema crea automáticamente una sesión si todavía no existe.
+* No se puede modificar el estado de una reserva que ya está `Finalizada` o `Cancelada`.
 
 ---
 
@@ -1200,7 +1205,12 @@ Finalizada
 
 ---
 
-## Obtener todas las reservas
+## Obtener reservas
+
+Este endpoint permite obtener reservas según el rol del usuario.
+
+Si el usuario tiene rol de administrador (`id_rol = 1`), se obtienen todas las reservas.
+Si el usuario no es administrador, se obtienen únicamente las reservas creadas por ese usuario.
 
 ### Endpoint
 
@@ -1214,50 +1224,16 @@ GET /api/reservas
 http://localhost:3000/api/reservas
 ```
 
-### Respuesta exitosa
-
-```json
-{
-  "success": true,
-  "message": "Reservas obtenidas correctamente",
-  "data": [
-    {
-      "id_reserva": 1,
-      "id_camara": 1,
-      "nombre_camara": "Cámara Gesell 1",
-      "ubicacion": "Edificio de Psicología, segundo nivel",
-      "id_usuario_solicitante": 2,
-      "nombre_usuario": "Carlos",
-      "apellido_usuario": "Ramírez",
-      "correo": "carlos@gesell.com",
-      "nombre_rol": "Docente",
-      "fecha": "2026-05-30T06:00:00.000Z",
-      "hora_inicio": "08:00:00",
-      "hora_fin": "10:00:00",
-      "motivo": "Práctica supervisada",
-      "estado": "Pendiente",
-      "fecha_creacion": "2026-05-26T20:00:00.000Z"
-    }
-  ]
-}
-```
-
----
-
-## Obtener reservas por usuario solicitante
-
-Este endpoint permite obtener únicamente las reservas de un usuario específico.
-
-### Endpoint
+### Ejemplo para administrador
 
 ```txt
-GET /api/reservas?id_usuario_solicitante=:id
+GET http://localhost:3000/api/reservas?id_usuario=1&id_rol=1
 ```
 
-### Ejemplo
+### Ejemplo para docente o practicante
 
 ```txt
-GET http://localhost:3000/api/reservas?id_usuario_solicitante=2
+GET http://localhost:3000/api/reservas?id_usuario=2&id_rol=2
 ```
 
 ### Respuesta exitosa
@@ -1269,20 +1245,21 @@ GET http://localhost:3000/api/reservas?id_usuario_solicitante=2
   "data": [
     {
       "id_reserva": 1,
-      "id_camara": 1,
-      "nombre_camara": "Cámara Gesell 1",
-      "ubicacion": "Edificio de Psicología, segundo nivel",
-      "id_usuario_solicitante": 2,
-      "nombre_usuario": "Carlos",
-      "apellido_usuario": "Ramírez",
-      "correo": "carlos@gesell.com",
-      "nombre_rol": "Docente",
       "fecha": "2026-05-30T06:00:00.000Z",
       "hora_inicio": "08:00:00",
       "hora_fin": "10:00:00",
       "motivo": "Práctica supervisada",
       "estado": "Pendiente",
-      "fecha_creacion": "2026-05-26T20:00:00.000Z"
+      "fecha_creacion": "2026-05-26T20:00:00.000Z",
+      "id_camara": 1,
+      "camara": "Cámara Gesell 1",
+      "id_usuario_solicitante": 2,
+      "nombre_solicitante": "Carlos",
+      "apellido_solicitante": "Ramírez",
+      "id_rol": 2,
+      "rol_solicitante": "Docente",
+      "id_grupo": 1,
+      "grupo": "Grupo de práctica 01"
     }
   ]
 }
@@ -1312,22 +1289,21 @@ GET http://localhost:3000/api/reservas/1
   "message": "Reserva obtenida correctamente",
   "data": {
     "id_reserva": 1,
-    "id_camara": 1,
-    "nombre_camara": "Cámara Gesell 1",
-    "ubicacion": "Edificio de Psicología, segundo nivel",
-    "camara_activa": 1,
-    "id_usuario_solicitante": 2,
-    "nombre_usuario": "Carlos",
-    "apellido_usuario": "Ramírez",
-    "correo": "carlos@gesell.com",
-    "id_rol": 2,
-    "nombre_rol": "Docente",
     "fecha": "2026-05-30T06:00:00.000Z",
     "hora_inicio": "08:00:00",
     "hora_fin": "10:00:00",
     "motivo": "Práctica supervisada",
     "estado": "Pendiente",
-    "fecha_creacion": "2026-05-26T20:00:00.000Z"
+    "fecha_creacion": "2026-05-26T20:00:00.000Z",
+    "id_camara": 1,
+    "camara": "Cámara Gesell 1",
+    "id_usuario_solicitante": 2,
+    "nombre_solicitante": "Carlos",
+    "apellido_solicitante": "Ramírez",
+    "id_rol": 2,
+    "rol_solicitante": "Docente",
+    "id_grupo": 1,
+    "grupo": "Grupo de práctica 01"
   }
 }
 ```
@@ -1345,7 +1321,10 @@ GET http://localhost:3000/api/reservas/1
 
 ## Crear reserva
 
-Permite crear una nueva reserva. La reserva siempre se guarda inicialmente con estado `Pendiente`.
+Permite crear una nueva reserva. La reserva se guarda inicialmente con estado `Pendiente`.
+
+El campo `id_grupo` puede enviarse en el body.
+Si no se envía, el backend intenta obtener automáticamente el grupo del usuario solicitante.
 
 ### Endpoint
 
@@ -1359,7 +1338,9 @@ POST /api/reservas
 http://localhost:3000/api/reservas
 ```
 
-### Body JSON
+### Body JSON sin `id_grupo`
+
+Este body funciona si el usuario solicitante pertenece únicamente a un grupo.
 
 ```json
 {
@@ -1372,30 +1353,45 @@ http://localhost:3000/api/reservas
 }
 ```
 
+### Body JSON con `id_grupo`
+
+Este body debe usarse si el usuario pertenece a más de un grupo.
+
+```json
+{
+  "id_camara": 1,
+  "id_usuario_solicitante": 2,
+  "id_grupo": 1,
+  "fecha": "2026-05-30",
+  "hora_inicio": "08:00",
+  "hora_fin": "10:00",
+  "motivo": "Práctica supervisada"
+}
+```
+
 ### Respuesta exitosa
 
 ```json
 {
   "success": true,
-  "message": "Reserva creada correctamente y enviada como pendiente",
+  "message": "Reserva creada correctamente",
   "data": {
     "id_reserva": 1,
-    "id_camara": 1,
-    "nombre_camara": "Cámara Gesell 1",
-    "ubicacion": "Edificio de Psicología, segundo nivel",
-    "camara_activa": 1,
-    "id_usuario_solicitante": 2,
-    "nombre_usuario": "Carlos",
-    "apellido_usuario": "Ramírez",
-    "correo": "carlos@gesell.com",
-    "id_rol": 2,
-    "nombre_rol": "Docente",
     "fecha": "2026-05-30T06:00:00.000Z",
     "hora_inicio": "08:00:00",
     "hora_fin": "10:00:00",
     "motivo": "Práctica supervisada",
     "estado": "Pendiente",
-    "fecha_creacion": "2026-05-26T20:00:00.000Z"
+    "fecha_creacion": "2026-05-26T20:00:00.000Z",
+    "id_camara": 1,
+    "camara": "Cámara Gesell 1",
+    "id_usuario_solicitante": 2,
+    "nombre_solicitante": "Carlos",
+    "apellido_solicitante": "Ramírez",
+    "id_rol": 2,
+    "rol_solicitante": "Docente",
+    "id_grupo": 1,
+    "grupo": "Grupo de práctica 01"
   }
 }
 ```
@@ -1408,38 +1404,47 @@ http://localhost:3000/api/reservas
   "id_usuario_solicitante": 2,
   "fecha": "2026-05-30",
   "hora_inicio": "08:00",
-  "hora_fin": "10:00"
+  "hora_fin": "10:00",
+  "motivo": "Práctica supervisada"
 }
 ```
 
-El campo `motivo` es opcional.
+El campo `id_grupo` es obligatorio únicamente cuando el usuario pertenece a más de un grupo.
+
+### Validaciones al crear reserva
+
+El backend valida que:
+
+* `id_camara` sea obligatorio.
+* `id_usuario_solicitante` sea obligatorio.
+* `fecha` sea obligatoria.
+* `hora_inicio` sea obligatoria.
+* `hora_fin` sea obligatoria.
+* `motivo` sea obligatorio.
+* La hora de inicio sea anterior a la hora de fin.
+* El usuario solicitante exista.
+* El usuario solicitante no sea administrador.
+* El usuario solicitante pertenezca al grupo indicado.
+* Si no se envía `id_grupo`, el usuario debe pertenecer únicamente a un grupo.
+* No exista conflicto de horario en la misma cámara y fecha.
 
 ### Errores comunes
 
-Si la cámara no existe:
+Si faltan campos obligatorios:
 
 ```json
 {
   "success": false,
-  "message": "La cámara de Gesell no existe"
+  "message": "id_camara, id_usuario_solicitante, fecha, hora_inicio y hora_fin son obligatorios"
 }
 ```
 
-Si la cámara está inactiva:
+Si no se envía motivo:
 
 ```json
 {
   "success": false,
-  "message": "La cámara de Gesell está inactiva"
-}
-```
-
-Si el horario se cruza con otra reserva pendiente o aprobada:
-
-```json
-{
-  "success": false,
-  "message": "La cámara ya está reservada o pendiente de aprobación en ese horario"
+  "message": "El motivo de la reserva es obligatorio"
 }
 ```
 
@@ -1448,83 +1453,71 @@ Si la hora de inicio es mayor o igual que la hora de fin:
 ```json
 {
   "success": false,
-  "message": "La hora de inicio debe ser menor que la hora de fin"
+  "message": "La hora de inicio debe ser anterior a la hora de fin"
 }
 ```
 
----
-
-## Actualizar reserva
-
-Permite actualizar una reserva existente. Solo se pueden actualizar reservas que están en estado `Pendiente`.
-
-### Endpoint
-
-```txt
-PUT /api/reservas/:id
-```
-
-### Ejemplo
-
-```txt
-PUT http://localhost:3000/api/reservas/1
-```
-
-### Body JSON
+Si el usuario solicitante no existe:
 
 ```json
 {
-  "id_camara": 1,
-  "fecha": "2026-05-31",
-  "hora_inicio": "09:00",
-  "hora_fin": "11:00",
-  "motivo": "Entrevista académica",
-  "id_usuario_accion": 2,
-  "id_rol_accion": 2
+  "success": false,
+  "message": "El usuario solicitante no existe"
 }
 ```
 
-### Respuesta exitosa
+Si el usuario solicitante es administrador:
 
 ```json
 {
-  "success": true,
-  "message": "Reserva actualizada correctamente",
-  "data": {
-    "id_reserva": 1,
-    "id_camara": 1,
-    "nombre_camara": "Cámara Gesell 1",
-    "ubicacion": "Edificio de Psicología, segundo nivel",
-    "camara_activa": 1,
-    "id_usuario_solicitante": 2,
-    "nombre_usuario": "Carlos",
-    "apellido_usuario": "Ramírez",
-    "correo": "carlos@gesell.com",
-    "id_rol": 2,
-    "nombre_rol": "Docente",
-    "fecha": "2026-05-31T06:00:00.000Z",
-    "hora_inicio": "09:00:00",
-    "hora_fin": "11:00:00",
-    "motivo": "Entrevista académica",
-    "estado": "Pendiente",
-    "fecha_creacion": "2026-05-26T20:00:00.000Z"
-  }
+  "success": false,
+  "message": "Un administrador no puede crear reservas como solicitante de grupo"
 }
 ```
 
-### Reglas para actualizar
+Si el usuario no pertenece a ningún grupo:
 
-- La reserva debe existir.
-- La reserva debe estar en estado `Pendiente`.
-- El administrador puede actualizar cualquier reserva pendiente.
-- Docentes y practicantes solo pueden actualizar sus propias reservas pendientes.
-- Si se cambia cámara, fecha u horario, se valida nuevamente que no exista choque de horario.
+```json
+{
+  "success": false,
+  "message": "El usuario solicitante no pertenece a ningún grupo"
+}
+```
+
+Si el usuario pertenece a más de un grupo y no se envía `id_grupo`:
+
+```json
+{
+  "success": false,
+  "message": "El usuario pertenece a más de un grupo. Debe enviar id_grupo en la reserva"
+}
+```
+
+Si el usuario no pertenece al grupo indicado:
+
+```json
+{
+  "success": false,
+  "message": "El usuario solicitante no pertenece al grupo indicado"
+}
+```
+
+Si existe conflicto de horario:
+
+```json
+{
+  "success": false,
+  "message": "La cámara ya tiene una reserva en ese horario"
+}
+```
 
 ---
 
 ## Cambiar estado de reserva
 
 Permite cambiar el estado de una reserva.
+
+Cuando una reserva se cambia a estado `Aprobada`, el sistema crea automáticamente una sesión relacionada con esa reserva, siempre y cuando todavía no exista una sesión creada.
 
 ### Endpoint
 
@@ -1538,19 +1531,33 @@ PATCH /api/reservas/:id/estado
 PATCH http://localhost:3000/api/reservas/1/estado
 ```
 
+### Body JSON
+
+```json
+{
+  "estado": "Aprobada"
+}
+```
+
+### Estados permitidos
+
+```txt
+Pendiente
+Aprobada
+Rechazada
+Cancelada
+Finalizada
+```
+
 ---
 
 ## Aprobar reserva
-
-Solo el administrador puede aprobar reservas.
 
 ### Body JSON
 
 ```json
 {
-  "estado": "Aprobada",
-  "id_usuario_accion": 1,
-  "id_rol_accion": 1
+  "estado": "Aprobada"
 }
 ```
 
@@ -1562,23 +1569,36 @@ Solo el administrador puede aprobar reservas.
   "message": "Estado de la reserva actualizado correctamente",
   "data": {
     "id_reserva": 1,
-    "id_camara": 1,
-    "nombre_camara": "Cámara Gesell 1",
-    "ubicacion": "Edificio de Psicología, segundo nivel",
-    "camara_activa": 1,
-    "id_usuario_solicitante": 2,
-    "nombre_usuario": "Carlos",
-    "apellido_usuario": "Ramírez",
-    "correo": "carlos@gesell.com",
-    "id_rol": 2,
-    "nombre_rol": "Docente",
     "fecha": "2026-05-30T06:00:00.000Z",
     "hora_inicio": "08:00:00",
     "hora_fin": "10:00:00",
     "motivo": "Práctica supervisada",
     "estado": "Aprobada",
-    "fecha_creacion": "2026-05-26T20:00:00.000Z"
+    "fecha_creacion": "2026-05-26T20:00:00.000Z",
+    "id_camara": 1,
+    "camara": "Cámara Gesell 1",
+    "id_usuario_solicitante": 2,
+    "nombre_solicitante": "Carlos",
+    "apellido_solicitante": "Ramírez",
+    "id_rol": 2,
+    "rol_solicitante": "Docente",
+    "id_grupo": 1,
+    "grupo": "Grupo de práctica 01"
   }
+}
+```
+
+### Nota
+
+Al aprobar una reserva, se crea automáticamente una sesión con estos datos:
+
+```json
+{
+  "id_reserva": 1,
+  "titulo": "Práctica supervisada",
+  "descripcion": null,
+  "tipo_sesion": "Entrevista",
+  "fecha_realizacion": "2026-05-30"
 }
 ```
 
@@ -1586,15 +1606,11 @@ Solo el administrador puede aprobar reservas.
 
 ## Rechazar reserva
 
-Solo el administrador puede rechazar reservas.
-
 ### Body JSON
 
 ```json
 {
-  "estado": "Rechazada",
-  "id_usuario_accion": 1,
-  "id_rol_accion": 1
+  "estado": "Rechazada"
 }
 ```
 
@@ -1602,27 +1618,11 @@ Solo el administrador puede rechazar reservas.
 
 ## Cancelar reserva
 
-El administrador puede cancelar cualquier reserva.
-
-Docentes y practicantes solo pueden cancelar sus propias reservas si están en estado `Pendiente`.
-
-### Body JSON para administrador
+### Body JSON
 
 ```json
 {
-  "estado": "Cancelada",
-  "id_usuario_accion": 1,
-  "id_rol_accion": 1
-}
-```
-
-### Body JSON para docente o practicante
-
-```json
-{
-  "estado": "Cancelada",
-  "id_usuario_accion": 2,
-  "id_rol_accion": 2
+  "estado": "Cancelada"
 }
 ```
 
@@ -1630,15 +1630,49 @@ Docentes y practicantes solo pueden cancelar sus propias reservas si están en e
 
 ## Finalizar reserva
 
-Solo el administrador puede finalizar reservas.
-
 ### Body JSON
 
 ```json
 {
-  "estado": "Finalizada",
-  "id_usuario_accion": 1,
-  "id_rol_accion": 1
+  "estado": "Finalizada"
+}
+```
+
+---
+
+## Errores comunes al cambiar estado
+
+Si se envía un estado no válido:
+
+```json
+{
+  "success": false,
+  "message": "Estado no válido. Debe ser uno de: Pendiente, Aprobada, Rechazada, Cancelada, Finalizada"
+}
+```
+
+Si la reserva no existe:
+
+```json
+{
+  "success": false,
+  "message": "La reserva no existe"
+}
+```
+
+Si la reserva ya está finalizada o cancelada:
+
+```json
+{
+  "success": false,
+  "message": "No se puede modificar una reserva en estado Finalizada"
+}
+```
+
+```json
+{
+  "success": false,
+  "message": "No se puede modificar una reserva en estado Cancelada"
 }
 ```
 
@@ -1646,7 +1680,7 @@ Solo el administrador puede finalizar reservas.
 
 ## Eliminar reserva
 
-Permite eliminar una reserva solamente si está en estado `Cancelada`.
+Permite eliminar una reserva existente.
 
 ### Endpoint
 
@@ -1660,55 +1694,43 @@ DELETE /api/reservas/:id
 DELETE http://localhost:3000/api/reservas/1
 ```
 
-### Body JSON
-
-```json
-{
-  "id_usuario_accion": 1,
-  "id_rol_accion": 1
-}
-```
-
-También se puede enviar por query params:
-
-```txt
-DELETE http://localhost:3000/api/reservas/1?id_usuario_accion=1&id_rol_accion=1
-```
-
 ### Respuesta exitosa
 
 ```json
 {
   "success": true,
-  "message": "Reserva eliminada correctamente"
+  "message": "Reserva eliminada correctamente",
+  "data": {
+    "id_reserva": 1,
+    "mensaje": "Reserva eliminada correctamente"
+  }
 }
 ```
 
-### Reglas para eliminar
-
-- La reserva debe existir.
-- La reserva debe estar en estado `Cancelada`.
-- El administrador puede eliminar cualquier reserva cancelada.
-- Docentes y practicantes solo pueden eliminar sus propias reservas canceladas.
-
-### Si la reserva no está cancelada
+### Si la reserva no existe
 
 ```json
 {
   "success": false,
-  "message": "Solo se pueden eliminar reservas canceladas"
+  "message": "La reserva no existe"
 }
 ```
+
+### Nota importante
+
+Actualmente este endpoint elimina la reserva directamente de la base de datos.
+
+Si la reserva ya tiene una sesión relacionada u otros registros dependientes, MySQL puede impedir la eliminación por las llaves foráneas.
 
 ---
 
 # Ejemplos de consumo desde frontend con fetch para reservas
 
-## Obtener reservas
+## Obtener reservas como administrador
 
 ```js
-const obtenerReservas = async () => {
-  const respuesta = await fetch('http://localhost:3000/api/reservas');
+const obtenerReservasAdmin = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/reservas?id_usuario=1&id_rol=1');
 
   const data = await respuesta.json();
 
@@ -1718,11 +1740,11 @@ const obtenerReservas = async () => {
 
 ---
 
-## Obtener reservas por usuario
+## Obtener reservas de un usuario
 
 ```js
-const obtenerReservasPorUsuario = async (idUsuario) => {
-  const respuesta = await fetch(`http://localhost:3000/api/reservas?id_usuario_solicitante=${idUsuario}`);
+const obtenerReservasPorUsuario = async (idUsuario, idRol) => {
+  const respuesta = await fetch(`http://localhost:3000/api/reservas?id_usuario=${idUsuario}&id_rol=${idRol}`);
 
   const data = await respuesta.json();
 
@@ -1732,7 +1754,23 @@ const obtenerReservasPorUsuario = async (idUsuario) => {
 
 ---
 
-## Crear reserva
+## Obtener reserva por ID
+
+```js
+const obtenerReservaPorId = async (idReserva) => {
+  const respuesta = await fetch(`http://localhost:3000/api/reservas/${idReserva}`);
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Crear reserva sin enviar `id_grupo`
+
+Este ejemplo funciona si el usuario solicitante pertenece solamente a un grupo.
 
 ```js
 const crearReserva = async () => {
@@ -1759,23 +1797,25 @@ const crearReserva = async () => {
 
 ---
 
-## Actualizar reserva
+## Crear reserva enviando `id_grupo`
+
+Este ejemplo debe usarse si el usuario solicitante pertenece a más de un grupo.
 
 ```js
-const actualizarReserva = async () => {
-  const respuesta = await fetch('http://localhost:3000/api/reservas/1', {
-    method: 'PUT',
+const crearReservaConGrupo = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/reservas', {
+    method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
       id_camara: 1,
-      fecha: '2026-05-31',
-      hora_inicio: '09:00',
-      hora_fin: '11:00',
-      motivo: 'Entrevista académica',
-      id_usuario_accion: 2,
-      id_rol_accion: 2
+      id_usuario_solicitante: 2,
+      id_grupo: 1,
+      fecha: '2026-05-30',
+      hora_inicio: '08:00',
+      hora_fin: '10:00',
+      motivo: 'Práctica supervisada'
     })
   });
 
@@ -1790,16 +1830,14 @@ const actualizarReserva = async () => {
 ## Cambiar estado de reserva
 
 ```js
-const cambiarEstadoReserva = async (idReserva, nuevoEstado, idUsuarioAccion, idRolAccion) => {
+const cambiarEstadoReserva = async (idReserva, nuevoEstado) => {
   const respuesta = await fetch(`http://localhost:3000/api/reservas/${idReserva}/estado`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      estado: nuevoEstado,
-      id_usuario_accion: idUsuarioAccion,
-      id_rol_accion: idRolAccion
+      estado: nuevoEstado
     })
   });
 
@@ -1809,51 +1847,38 @@ const cambiarEstadoReserva = async (idReserva, nuevoEstado, idUsuarioAccion, idR
 };
 ```
 
-### Aprobar como administrador
+### Aprobar reserva
 
 ```js
-cambiarEstadoReserva(1, 'Aprobada', 1, 1);
+cambiarEstadoReserva(1, 'Aprobada');
 ```
 
-### Rechazar como administrador
+### Rechazar reserva
 
 ```js
-cambiarEstadoReserva(1, 'Rechazada', 1, 1);
+cambiarEstadoReserva(1, 'Rechazada');
 ```
 
-### Cancelar como administrador
+### Cancelar reserva
 
 ```js
-cambiarEstadoReserva(1, 'Cancelada', 1, 1);
+cambiarEstadoReserva(1, 'Cancelada');
 ```
 
-### Cancelar como docente
+### Finalizar reserva
 
 ```js
-cambiarEstadoReserva(1, 'Cancelada', 2, 2);
-```
-
-### Finalizar como administrador
-
-```js
-cambiarEstadoReserva(1, 'Finalizada', 1, 1);
+cambiarEstadoReserva(1, 'Finalizada');
 ```
 
 ---
 
-## Eliminar reserva cancelada
+## Eliminar reserva
 
 ```js
 const eliminarReserva = async () => {
   const respuesta = await fetch('http://localhost:3000/api/reservas/1', {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      id_usuario_accion: 1,
-      id_rol_accion: 1
-    })
+    method: 'DELETE'
   });
 
   const data = await respuesta.json();
@@ -1861,6 +1886,7 @@ const eliminarReserva = async () => {
   console.log(data);
 };
 ```
+
 
 # Módulo de grupos
 
