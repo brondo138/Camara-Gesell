@@ -192,12 +192,11 @@ INSERT IGNORE INTO etiquetas (nombre) VALUES
 
 CREATE TABLE observaciones (
     id_observacion INT AUTO_INCREMENT PRIMARY KEY,
-    id_grabacion INT NOT NULL,
+    id_sesion INT NOT NULL,
     id_usuario INT NOT NULL,
     observacion TEXT NOT NULL,
-    minuto_video VARCHAR(20),
     fecha_observacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-    FOREIGN KEY (id_grabacion) REFERENCES grabaciones(id_grabacion),
+    FOREIGN KEY (id_sesion) REFERENCES sesiones(id_sesion) ON DELETE CASCADE,
     FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
 );
