@@ -3631,6 +3631,946 @@ const eliminarObservacion = async () => {
 };
 ```
 
+# Módulo de grabaciones
+
+Este módulo permite gestionar las grabaciones relacionadas con las sesiones de la Cámara de Gesell.
+
+Una grabación pertenece a una sesión.
+La sesión pertenece a una reserva.
+La reserva pertenece a un grupo.
+
+Por lo tanto, las grabaciones pueden ser vistas por los miembros del grupo asociado a la sesión, siempre que la grabación esté visible.
+
+---
+
+## Reglas principales del módulo
+
+* Una grabación pertenece a una sesión.
+* Una sesión puede tener una o varias grabaciones.
+* La grabación guarda el usuario que la subió mediante `id_usuario_subio`.
+* Solo se pueden subir grabaciones a sesiones existentes.
+* No se pueden subir grabaciones a sesiones canceladas.
+* El administrador puede ver todas las grabaciones.
+* Docentes y practicantes pueden ver grabaciones visibles de las sesiones de sus grupos.
+* Docentes y practicantes pueden subir grabaciones a sesiones de sus grupos.
+* Docentes y practicantes solo pueden actualizar, cambiar visibilidad o eliminar las grabaciones que ellos mismos subieron.
+* El administrador puede actualizar, cambiar visibilidad o eliminar cualquier grabación.
+* Las grabaciones pueden tener etiquetas asociadas.
+
+---
+
+## Tabla relacionada
+
+La tabla principal del módulo es `grabaciones`.
+
+```sql
+CREATE TABLE grabaciones (
+    id_grabacion INT AUTO_INCREMENT PRIMARY KEY,
+    id_sesion INT NOT NULL,
+    id_usuario_subio INT NOT NULL,
+    titulo VARCHAR(150) NOT NULL,
+    url_video TEXT NOT NULL,
+    descripcion TEXT,
+    fecha_subida TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    visible BOOLEAN DEFAULT TRUE,
+
+    FOREIGN KEY (id_sesion) REFERENCES sesiones(id_sesion),
+    FOREIGN KEY (id_usuario_subio) REFERENCES usuarios(id_usuario)
+);
+```
+
+También se utilizan las tablas `etiquetas` y `grabaciones_etiquetas` para asociar etiquetas a cada grabación.
+
+```sql
+CREATE TABLE etiquetas (
+    id_etiqueta INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(50) NOT NULL UNIQUE
+);
+```
+
+```sql
+CREATE TABLE grabaciones_etiquetas (
+    id_grabacion INT NOT NULL,
+    id_etiqueta INT NOT NULL,
+
+    PRIMARY KEY (id_grabacion, id_etiqueta),
+
+    FOREIGN KEY (id_grabacion) REFERENCES grabaciones(id_grabacion) ON DELETE CASCADE,
+    FOREIGN KEY (id_etiqueta) REFERENCES etiquetas(id_etiqueta) ON DELETE CASCADE
+);
+```
+
+---
+
+# Endpoints del módulo
+
+La API utiliza el prefijo:
+
+```txt
+/api/grabaciones
+```
+
+---
+
+## Obtener grabaciones
+
+Este endpoint permite obtener las grabaciones según el rol del usuario.
+
+Si el usuario es administrador, obtiene todas las grabaciones.
+Si el usuario es docente o practicante, obtiene únicamente las grabaciones visibles de las sesiones pertenecientes a sus grupos.
+
+### Endpoint
+
+```txt
+GET /api/grabaciones
+```
+
+### URL completa
+
+```txt
+http://localhost:3000/api/grabaciones
+```
+
+### Ejemplo para administrador
+
+```txt
+GET http://localhost:3000/api/grabaciones?id_usuario=1&id_rol=1
+```
+
+### Ejemplo para docente
+
+```txt
+GET http://localhost:3000/api/grabaciones?id_usuario=2&id_rol=2
+```
+
+### Ejemplo para practicante
+
+```txt
+GET http://localhost:3000/api/grabaciones?id_usuario=3&id_rol=3
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Grabaciones obtenidas correctamente",
+  "data": [
+    {
+      "id_grabacion": 1,
+      "id_sesion": 1,
+      "id_usuario_subio": 2,
+      "nombre_usuario_subio": "Carlos",
+      "apellido_usuario_subio": "Ramírez",
+      "rol_usuario_subio": "Docente",
+      "titulo": "Grabación de práctica supervisada",
+      "url_video": "https://drive.google.com/video-prueba",
+      "descripcion": "Grabación de la sesión realizada.",
+      "fecha_subida": "2026-06-02T20:00:00.000Z",
+      "visible": 1,
+      "id_reserva": 1,
+      "titulo_sesion": "Práctica supervisada",
+      "estado_sesion": "Programada",
+      "fecha_sesion": "2026-06-02T06:00:00.000Z",
+      "hora_inicio": "08:00:00",
+      "hora_fin": "10:00:00",
+      "motivo": "Práctica supervisada",
+      "estado_reserva": "Aprobada",
+      "id_camara": 1,
+      "camara": "Cámara Gesell 1",
+      "id_usuario_solicitante": 2,
+      "nombre_solicitante": "Carlos",
+      "apellido_solicitante": "Ramírez",
+      "id_rol": 2,
+      "rol_solicitante": "Docente",
+      "id_grupo": 1,
+      "grupo": "Grupo de práctica 01",
+      "etiquetas": [
+        {
+          "id_etiqueta": 1,
+          "nombre": "Evaluación"
+        },
+        {
+          "id_etiqueta": 3,
+          "nombre": "Práctica supervisada"
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## Obtener grabación por ID
+
+### Endpoint
+
+```txt
+GET /api/grabaciones/:id
+```
+
+### Ejemplo
+
+```txt
+GET http://localhost:3000/api/grabaciones/1
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Grabación obtenida correctamente",
+  "data": {
+    "id_grabacion": 1,
+    "id_sesion": 1,
+    "id_usuario_subio": 2,
+    "nombre_usuario_subio": "Carlos",
+    "apellido_usuario_subio": "Ramírez",
+    "rol_usuario_subio": "Docente",
+    "titulo": "Grabación de práctica supervisada",
+    "url_video": "https://drive.google.com/video-prueba",
+    "descripcion": "Grabación de la sesión realizada.",
+    "fecha_subida": "2026-06-02T20:00:00.000Z",
+    "visible": 1,
+    "id_reserva": 1,
+    "titulo_sesion": "Práctica supervisada",
+    "estado_sesion": "Programada",
+    "fecha_sesion": "2026-06-02T06:00:00.000Z",
+    "hora_inicio": "08:00:00",
+    "hora_fin": "10:00:00",
+    "motivo": "Práctica supervisada",
+    "estado_reserva": "Aprobada",
+    "id_camara": 1,
+    "camara": "Cámara Gesell 1",
+    "id_usuario_solicitante": 2,
+    "nombre_solicitante": "Carlos",
+    "apellido_solicitante": "Ramírez",
+    "id_rol": 2,
+    "rol_solicitante": "Docente",
+    "id_grupo": 1,
+    "grupo": "Grupo de práctica 01",
+    "etiquetas": [
+      {
+        "id_etiqueta": 1,
+        "nombre": "Evaluación"
+      }
+    ]
+  }
+}
+```
+
+### Si la grabación no existe
+
+```json
+{
+  "success": false,
+  "message": "La grabación no existe"
+}
+```
+
+---
+
+## Obtener grabaciones por sesión
+
+Este endpoint permite obtener las grabaciones de una sesión específica.
+
+El administrador puede ver todas las grabaciones de la sesión.
+Docentes y practicantes solo pueden ver las grabaciones visibles si pertenecen al grupo de esa sesión.
+
+### Endpoint
+
+```txt
+GET /api/grabaciones/sesion/:id_sesion
+```
+
+### Ejemplo para administrador
+
+```txt
+GET http://localhost:3000/api/grabaciones/sesion/1?id_usuario=1&id_rol=1
+```
+
+### Ejemplo para docente o practicante
+
+```txt
+GET http://localhost:3000/api/grabaciones/sesion/1?id_usuario=2&id_rol=2
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Grabaciones de sesión obtenidas correctamente",
+  "data": [
+    {
+      "id_grabacion": 1,
+      "id_sesion": 1,
+      "id_usuario_subio": 2,
+      "nombre_usuario_subio": "Carlos",
+      "apellido_usuario_subio": "Ramírez",
+      "rol_usuario_subio": "Docente",
+      "titulo": "Grabación de práctica supervisada",
+      "url_video": "https://drive.google.com/video-prueba",
+      "descripcion": "Grabación de la sesión realizada.",
+      "fecha_subida": "2026-06-02T20:00:00.000Z",
+      "visible": 1,
+      "etiquetas": [
+        {
+          "id_etiqueta": 1,
+          "nombre": "Evaluación"
+        }
+      ]
+    }
+  ]
+}
+```
+
+---
+
+## Obtener etiquetas
+
+Este endpoint permite obtener las etiquetas disponibles para asociarlas a una grabación.
+
+### Endpoint
+
+```txt
+GET /api/grabaciones/etiquetas
+```
+
+### URL completa
+
+```txt
+http://localhost:3000/api/grabaciones/etiquetas
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Etiquetas obtenidas correctamente",
+  "data": [
+    {
+      "id_etiqueta": 1,
+      "nombre": "Evaluación"
+    },
+    {
+      "id_etiqueta": 2,
+      "nombre": "Entrevista clínica"
+    },
+    {
+      "id_etiqueta": 3,
+      "nombre": "Práctica supervisada"
+    }
+  ]
+}
+```
+
+---
+
+## Crear grabación
+
+Permite crear una nueva grabación relacionada con una sesión.
+
+### Endpoint
+
+```txt
+POST /api/grabaciones
+```
+
+### URL completa
+
+```txt
+http://localhost:3000/api/grabaciones
+```
+
+### Body JSON
+
+```json
+{
+  "id_sesion": 1,
+  "id_usuario_subio": 2,
+  "id_rol": 2,
+  "titulo": "Grabación de práctica supervisada",
+  "url_video": "https://drive.google.com/video-prueba",
+  "descripcion": "Grabación de la sesión realizada.",
+  "visible": true,
+  "etiquetas": [1, 3]
+}
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Grabación creada correctamente",
+  "data": {
+    "id_grabacion": 1,
+    "id_sesion": 1,
+    "id_usuario_subio": 2,
+    "nombre_usuario_subio": "Carlos",
+    "apellido_usuario_subio": "Ramírez",
+    "rol_usuario_subio": "Docente",
+    "titulo": "Grabación de práctica supervisada",
+    "url_video": "https://drive.google.com/video-prueba",
+    "descripcion": "Grabación de la sesión realizada.",
+    "fecha_subida": "2026-06-02T20:00:00.000Z",
+    "visible": 1,
+    "id_reserva": 1,
+    "titulo_sesion": "Práctica supervisada",
+    "estado_sesion": "Programada",
+    "fecha_sesion": "2026-06-02T06:00:00.000Z",
+    "hora_inicio": "08:00:00",
+    "hora_fin": "10:00:00",
+    "motivo": "Práctica supervisada",
+    "estado_reserva": "Aprobada",
+    "id_camara": 1,
+    "camara": "Cámara Gesell 1",
+    "id_usuario_solicitante": 2,
+    "nombre_solicitante": "Carlos",
+    "apellido_solicitante": "Ramírez",
+    "id_rol": 2,
+    "rol_solicitante": "Docente",
+    "id_grupo": 1,
+    "grupo": "Grupo de práctica 01",
+    "etiquetas": [
+      {
+        "id_etiqueta": 1,
+        "nombre": "Evaluación"
+      },
+      {
+        "id_etiqueta": 3,
+        "nombre": "Práctica supervisada"
+      }
+    ]
+  }
+}
+```
+
+### Campos obligatorios
+
+```json
+{
+  "id_sesion": 1,
+  "id_usuario_subio": 2,
+  "titulo": "Grabación de práctica supervisada",
+  "url_video": "https://drive.google.com/video-prueba"
+}
+```
+
+El campo `descripcion` es opcional.
+El campo `visible` es opcional; si no se envía, por defecto se guarda como visible.
+El campo `etiquetas` es opcional.
+
+### Validaciones
+
+El backend valida que:
+
+* `id_sesion` sea obligatorio.
+* `id_usuario_subio` sea obligatorio.
+* El título sea obligatorio.
+* La URL del video sea obligatoria.
+* La sesión exista.
+* La sesión no esté cancelada.
+* Si el usuario no es administrador, debe pertenecer al grupo de la sesión.
+
+### Errores comunes
+
+Si falta `id_sesion`:
+
+```json
+{
+  "success": false,
+  "message": "id_sesion es obligatorio"
+}
+```
+
+Si falta `id_usuario_subio`:
+
+```json
+{
+  "success": false,
+  "message": "id_usuario_subio es obligatorio"
+}
+```
+
+Si no se envía título:
+
+```json
+{
+  "success": false,
+  "message": "El título es obligatorio"
+}
+```
+
+Si no se envía URL:
+
+```json
+{
+  "success": false,
+  "message": "La URL del video es obligatoria"
+}
+```
+
+Si la sesión no existe:
+
+```json
+{
+  "success": false,
+  "message": "La sesión no existe"
+}
+```
+
+Si la sesión está cancelada:
+
+```json
+{
+  "success": false,
+  "message": "No se pueden subir grabaciones a una sesión cancelada"
+}
+```
+
+Si el usuario no pertenece al grupo de la sesión:
+
+```json
+{
+  "success": false,
+  "message": "El usuario no pertenece al grupo de esta sesión"
+}
+```
+
+---
+
+## Actualizar grabación
+
+Permite actualizar una grabación existente.
+
+El administrador puede actualizar cualquier grabación.
+Docentes y practicantes solo pueden actualizar las grabaciones que ellos mismos subieron.
+
+### Endpoint
+
+```txt
+PUT /api/grabaciones/:id
+```
+
+### Ejemplo
+
+```txt
+PUT http://localhost:3000/api/grabaciones/1
+```
+
+### Body JSON
+
+```json
+{
+  "id_usuario": 2,
+  "id_rol": 2,
+  "titulo": "Grabación actualizada",
+  "url_video": "https://drive.google.com/video-actualizado",
+  "descripcion": "Descripción actualizada de la grabación.",
+  "visible": true,
+  "etiquetas": [1, 4]
+}
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Grabación actualizada correctamente",
+  "data": {
+    "id_grabacion": 1,
+    "id_sesion": 1,
+    "id_usuario_subio": 2,
+    "titulo": "Grabación actualizada",
+    "url_video": "https://drive.google.com/video-actualizado",
+    "descripcion": "Descripción actualizada de la grabación.",
+    "visible": 1,
+    "etiquetas": [
+      {
+        "id_etiqueta": 1,
+        "nombre": "Evaluación"
+      },
+      {
+        "id_etiqueta": 4,
+        "nombre": "Entrevista clínica"
+      }
+    ]
+  }
+}
+```
+
+### Campos obligatorios
+
+```json
+{
+  "id_usuario": 2,
+  "titulo": "Grabación actualizada",
+  "url_video": "https://drive.google.com/video-actualizado"
+}
+```
+
+### Validaciones
+
+El backend valida que:
+
+* La grabación exista.
+* El título sea obligatorio.
+* La URL del video sea obligatoria.
+* Solo el usuario que subió la grabación o un administrador pueda actualizarla.
+
+### Errores comunes
+
+Si otro usuario intenta actualizar una grabación que no subió:
+
+```json
+{
+  "success": false,
+  "message": "Solo el usuario que subió la grabación o un administrador puede actualizarla"
+}
+```
+
+---
+
+## Cambiar visibilidad de grabación
+
+Permite cambiar si una grabación está visible o no.
+
+El administrador puede cambiar la visibilidad de cualquier grabación.
+Docentes y practicantes solo pueden cambiar la visibilidad de las grabaciones que ellos mismos subieron.
+
+### Endpoint
+
+```txt
+PATCH /api/grabaciones/:id/visibilidad
+```
+
+### Ejemplo
+
+```txt
+PATCH http://localhost:3000/api/grabaciones/1/visibilidad
+```
+
+### Body JSON para ocultar
+
+```json
+{
+  "id_usuario": 2,
+  "id_rol": 2,
+  "visible": false
+}
+```
+
+### Body JSON para mostrar
+
+```json
+{
+  "id_usuario": 2,
+  "id_rol": 2,
+  "visible": true
+}
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Visibilidad actualizada correctamente",
+  "data": {
+    "id_grabacion": 1,
+    "id_sesion": 1,
+    "id_usuario_subio": 2,
+    "titulo": "Grabación de práctica supervisada",
+    "url_video": "https://drive.google.com/video-prueba",
+    "descripcion": "Grabación de la sesión realizada.",
+    "visible": 0
+  }
+}
+```
+
+### Validaciones
+
+El backend valida que:
+
+* La grabación exista.
+* El campo `visible` sea obligatorio.
+* Solo el usuario que subió la grabación o un administrador pueda cambiar la visibilidad.
+
+### Errores comunes
+
+Si no se envía `visible`:
+
+```json
+{
+  "success": false,
+  "message": "El campo visible es obligatorio"
+}
+```
+
+Si otro usuario intenta cambiar la visibilidad:
+
+```json
+{
+  "success": false,
+  "message": "Solo el usuario que subió la grabación o un administrador puede cambiar la visibilidad"
+}
+```
+
+---
+
+## Eliminar grabación
+
+Permite eliminar una grabación existente.
+
+El administrador puede eliminar cualquier grabación.
+Docentes y practicantes solo pueden eliminar las grabaciones que ellos mismos subieron.
+
+### Endpoint
+
+```txt
+DELETE /api/grabaciones/:id
+```
+
+### Ejemplo
+
+```txt
+DELETE http://localhost:3000/api/grabaciones/1
+```
+
+### Body JSON
+
+```json
+{
+  "id_usuario": 2,
+  "id_rol": 2
+}
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Grabación eliminada correctamente",
+  "data": {
+    "id_grabacion": 1,
+    "mensaje": "Grabación eliminada correctamente"
+  }
+}
+```
+
+### Validaciones
+
+El backend valida que:
+
+* La grabación exista.
+* Solo el usuario que subió la grabación o un administrador pueda eliminarla.
+
+### Errores comunes
+
+Si otro usuario intenta eliminar la grabación:
+
+```json
+{
+  "success": false,
+  "message": "Solo el usuario que subió la grabación o un administrador puede eliminarla"
+}
+```
+
+---
+
+# Ejemplos de consumo desde frontend con fetch para grabaciones
+
+## Obtener grabaciones como administrador
+
+```js
+const obtenerGrabacionesAdmin = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/grabaciones?id_usuario=1&id_rol=1');
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Obtener grabaciones visibles de mis grupos
+
+```js
+const obtenerGrabacionesPorUsuario = async (idUsuario, idRol) => {
+  const respuesta = await fetch(`http://localhost:3000/api/grabaciones?id_usuario=${idUsuario}&id_rol=${idRol}`);
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Obtener grabación por ID
+
+```js
+const obtenerGrabacionPorId = async (idGrabacion) => {
+  const respuesta = await fetch(`http://localhost:3000/api/grabaciones/${idGrabacion}`);
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Obtener grabaciones de una sesión
+
+```js
+const obtenerGrabacionesPorSesion = async (idSesion, idUsuario, idRol) => {
+  const respuesta = await fetch(`http://localhost:3000/api/grabaciones/sesion/${idSesion}?id_usuario=${idUsuario}&id_rol=${idRol}`);
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Obtener etiquetas
+
+```js
+const obtenerEtiquetas = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/grabaciones/etiquetas');
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Crear grabación
+
+```js
+const crearGrabacion = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/grabaciones', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      id_sesion: 1,
+      id_usuario_subio: 2,
+      id_rol: 2,
+      titulo: 'Grabación de práctica supervisada',
+      url_video: 'https://drive.google.com/video-prueba',
+      descripcion: 'Grabación de la sesión realizada.',
+      visible: true,
+      etiquetas: [1, 3]
+    })
+  });
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Actualizar grabación
+
+```js
+const actualizarGrabacion = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/grabaciones/1', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      id_usuario: 2,
+      id_rol: 2,
+      titulo: 'Grabación actualizada',
+      url_video: 'https://drive.google.com/video-actualizado',
+      descripcion: 'Descripción actualizada desde frontend.',
+      visible: true,
+      etiquetas: [1, 4]
+    })
+  });
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Cambiar visibilidad
+
+```js
+const cambiarVisibilidadGrabacion = async (idGrabacion, idUsuario, idRol, visible) => {
+  const respuesta = await fetch(`http://localhost:3000/api/grabaciones/${idGrabacion}/visibilidad`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      id_usuario: idUsuario,
+      id_rol: idRol,
+      visible: visible
+    })
+  });
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+### Ocultar grabación
+
+```js
+cambiarVisibilidadGrabacion(1, 2, 2, false);
+```
+
+### Mostrar grabación
+
+```js
+cambiarVisibilidadGrabacion(1, 2, 2, true);
+```
+
+---
+
+## Eliminar grabación
+
+```js
+const eliminarGrabacion = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/grabaciones/1', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      id_usuario: 2,
+      id_rol: 2
+    })
+  });
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
 
 # Pruebas en Postman
 
