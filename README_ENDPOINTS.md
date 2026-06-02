@@ -1169,6 +1169,630 @@ const eliminarCamara = async () => {
 };
 ```
 
+# Módulo de grupos
+
+Este módulo permite gestionar los grupos académicos del sistema.  
+Un grupo puede tener varios practicantes y varios docentes asignados, pero debe tener obligatoriamente un docente responsable.
+
+Los usuarios pueden existir en el sistema sin pertenecer a ningún grupo.  
+Después de crear un usuario, el administrador puede asignarlo a un grupo.
+
+---
+
+## Reglas principales del módulo
+
+- Un grupo debe tener un docente responsable obligatorio.
+- El docente responsable debe tener rol `Docente`.
+- Un grupo puede tener varios docentes y varios practicantes.
+- Los usuarios con rol `Administrador` no pueden ser asignados a grupos.
+- Un practicante solo puede asignarse como `Practicante`.
+- Un docente solo puede asignarse como `Docente`.
+- Al crear un grupo, el docente responsable se agrega automáticamente como miembro del grupo.
+- No se puede quitar del grupo al docente responsable.
+
+---
+
+## Obtener todos los grupos
+
+### Endpoint
+
+```txt
+GET /api/grupos
+````
+
+### URL completa
+
+```txt
+http://localhost:3000/api/grupos
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id_grupo": 1,
+      "nombre": "Grupo de práctica 01",
+      "descripcion": "Grupo para prácticas supervisadas",
+      "id_docente_responsable": 2,
+      "docente_responsable": "Carlos Ramírez",
+      "activo": 1,
+      "fecha_creacion": "2026-06-02T15:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+## Obtener grupo por ID
+
+### Endpoint
+
+```txt
+GET /api/grupos/:id
+```
+
+### Ejemplo
+
+```txt
+GET http://localhost:3000/api/grupos/1
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "data": {
+    "id_grupo": 1,
+    "nombre": "Grupo de práctica 01",
+    "descripcion": "Grupo para prácticas supervisadas",
+    "id_docente_responsable": 2,
+    "docente_responsable": "Carlos Ramírez",
+    "activo": 1,
+    "fecha_creacion": "2026-06-02T15:00:00.000Z"
+  }
+}
+```
+
+### Si el grupo no existe
+
+```json
+{
+  "success": false,
+  "message": "Grupo no encontrado"
+}
+```
+
+---
+
+## Crear grupo
+
+### Endpoint
+
+```txt
+POST /api/grupos
+```
+
+### URL completa
+
+```txt
+http://localhost:3000/api/grupos
+```
+
+### Body JSON
+
+```json
+{
+  "nombre": "Grupo de práctica 01",
+  "descripcion": "Grupo para prácticas supervisadas",
+  "id_docente_responsable": 2
+}
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Grupo creado correctamente",
+  "data": {
+    "id_grupo": 1,
+    "nombre": "Grupo de práctica 01",
+    "descripcion": "Grupo para prácticas supervisadas",
+    "id_docente_responsable": 2
+  }
+}
+```
+
+### Campos obligatorios
+
+Para crear un grupo se deben enviar los siguientes campos:
+
+```json
+{
+  "nombre": "Grupo de práctica 01",
+  "id_docente_responsable": 2
+}
+```
+
+El campo `descripcion` es opcional.
+
+### Validaciones
+
+El backend valida que:
+
+- El nombre del grupo sea obligatorio.
+    
+- El docente responsable sea obligatorio.
+    
+- El usuario asignado como docente responsable exista.
+    
+- El usuario asignado como docente responsable tenga rol `Docente`.
+    
+
+### Errores comunes
+
+Si no se envía el nombre o el docente responsable:
+
+```json
+{
+  "success": false,
+  "message": "El nombre y el docente responsable son obligatorios"
+}
+```
+
+Si el docente responsable no existe:
+
+```json
+{
+  "success": false,
+  "message": "El docente responsable no existe"
+}
+```
+
+Si el usuario no tiene rol `Docente`:
+
+```json
+{
+  "success": false,
+  "message": "El usuario asignado como responsable debe tener rol Docente"
+}
+```
+
+---
+
+## Actualizar grupo
+
+### Endpoint
+
+```txt
+PUT /api/grupos/:id
+```
+
+### Ejemplo
+
+```txt
+PUT http://localhost:3000/api/grupos/1
+```
+
+### Body JSON
+
+```json
+{
+  "nombre": "Grupo de práctica actualizado",
+  "descripcion": "Grupo actualizado desde la API",
+  "id_docente_responsable": 2,
+  "activo": true
+}
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Grupo actualizado correctamente",
+  "data": {
+    "id_grupo": 1,
+    "nombre": "Grupo de práctica actualizado",
+    "descripcion": "Grupo actualizado desde la API",
+    "id_docente_responsable": 2,
+    "docente_responsable": "Carlos Ramírez",
+    "activo": 1,
+    "fecha_creacion": "2026-06-02T15:00:00.000Z"
+  }
+}
+```
+
+### Campos obligatorios
+
+Para actualizar un grupo se deben enviar:
+
+```json
+{
+  "nombre": "Grupo de práctica actualizado",
+  "id_docente_responsable": 2,
+  "activo": true
+}
+```
+
+El campo `descripcion` puede enviarse vacío o como `null`.
+
+---
+
+## Eliminar grupo
+
+### Endpoint
+
+```txt
+DELETE /api/grupos/:id
+```
+
+### Ejemplo
+
+```txt
+DELETE http://localhost:3000/api/grupos/1
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Grupo eliminado correctamente"
+}
+```
+
+
+---
+
+# Asignación de usuarios a grupos
+
+Además del CRUD principal, este módulo permite agregar o quitar docentes y practicantes dentro de un grupo.
+
+---
+
+## Obtener usuarios de un grupo
+
+### Endpoint
+
+```txt
+GET /api/grupos/:id/usuarios
+```
+
+### Ejemplo
+
+```txt
+GET http://localhost:3000/api/grupos/1/usuarios
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id_grupo": 1,
+      "id_usuario": 2,
+      "nombre": "Carlos",
+      "apellido": "Ramírez",
+      "correo": "carlos@gesell.com",
+      "rol_sistema": "Docente",
+      "rol_en_grupo": "Docente",
+      "fecha_asignacion": "2026-06-02T15:00:00.000Z"
+    },
+    {
+      "id_grupo": 1,
+      "id_usuario": 3,
+      "nombre": "Ana",
+      "apellido": "Martínez",
+      "correo": "ana@gesell.com",
+      "rol_sistema": "Practicante",
+      "rol_en_grupo": "Practicante",
+      "fecha_asignacion": "2026-06-02T15:05:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+## Asignar usuario a un grupo
+
+### Endpoint
+
+```txt
+POST /api/grupos/:id/usuarios
+```
+
+### Ejemplo
+
+```txt
+POST http://localhost:3000/api/grupos/1/usuarios
+```
+
+### Body JSON para asignar practicante
+
+```json
+{
+  "id_usuario": 3,
+  "rol_en_grupo": "Practicante"
+}
+```
+
+### Body JSON para asignar docente
+
+```json
+{
+  "id_usuario": 4,
+  "rol_en_grupo": "Docente"
+}
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Usuario asignado al grupo correctamente"
+}
+```
+
+### Validaciones
+
+El backend valida que:
+
+- El grupo exista.
+    
+- El usuario exista.
+    
+- El usuario no pertenezca ya al grupo.
+    
+- El rol dentro del grupo sea `Docente` o `Practicante`.
+    
+- No se puedan asignar usuarios con rol `Administrador`.
+    
+- Si se asigna como `Docente`, el usuario debe tener rol de sistema `Docente`.
+    
+- Si se asigna como `Practicante`, el usuario debe tener rol de sistema `Practicante`.
+    
+
+### Errores comunes
+
+Si el usuario ya pertenece al grupo:
+
+```json
+{
+  "success": false,
+  "message": "El usuario ya pertenece a este grupo"
+}
+```
+
+Si se intenta agregar un administrador:
+
+```json
+{
+  "success": false,
+  "message": "No se pueden asignar administradores a un grupo"
+}
+```
+
+Si el rol del sistema no coincide con el rol del grupo:
+
+```json
+{
+  "success": false,
+  "message": "El usuario tiene rol Docente, no puede asignarse como Practicante"
+}
+```
+
+---
+
+## Quitar usuario de un grupo
+
+### Endpoint
+
+```txt
+DELETE /api/grupos/:id/usuarios/:idUsuario
+```
+
+### Ejemplo
+
+```txt
+DELETE http://localhost:3000/api/grupos/1/usuarios/3
+```
+
+### Respuesta exitosa
+
+```json
+{
+  "success": true,
+  "message": "Usuario removido del grupo correctamente"
+}
+```
+
+### Validaciones
+
+El backend valida que:
+
+- El grupo exista.
+    
+- El usuario pertenezca al grupo.
+    
+- No se pueda quitar al docente responsable del grupo.
+    
+
+### Error si se intenta quitar al docente responsable
+
+```json
+{
+  "success": false,
+  "message": "No se puede quitar al docente responsable del grupo"
+}
+```
+
+### Error si el usuario no pertenece al grupo
+
+```json
+{
+  "success": false,
+  "message": "El usuario no pertenece a este grupo"
+}
+```
+
+---
+
+# Ejemplos de consumo desde frontend con fetch para grupos
+
+## Obtener grupos
+
+```js
+const obtenerGrupos = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/grupos');
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Obtener grupo por ID
+
+```js
+const obtenerGrupoPorId = async (idGrupo) => {
+  const respuesta = await fetch(`http://localhost:3000/api/grupos/${idGrupo}`);
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Crear grupo
+
+```js
+const crearGrupo = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/grupos', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      nombre: 'Grupo de práctica 01',
+      descripcion: 'Grupo para prácticas supervisadas',
+      id_docente_responsable: 2
+    })
+  });
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Actualizar grupo
+
+```js
+const actualizarGrupo = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/grupos/1', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      nombre: 'Grupo de práctica actualizado',
+      descripcion: 'Grupo actualizado desde la API',
+      id_docente_responsable: 2,
+      activo: true
+    })
+  });
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Eliminar grupo
+
+```js
+const eliminarGrupo = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/grupos/1', {
+    method: 'DELETE'
+  });
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Obtener usuarios de un grupo
+
+```js
+const obtenerUsuariosGrupo = async (idGrupo) => {
+  const respuesta = await fetch(`http://localhost:3000/api/grupos/${idGrupo}/usuarios`);
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Asignar usuario a un grupo
+
+```js
+const asignarUsuarioGrupo = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/grupos/1/usuarios', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      id_usuario: 3,
+      rol_en_grupo: 'Practicante'
+    })
+  });
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
+---
+
+## Quitar usuario de un grupo
+
+```js
+const quitarUsuarioGrupo = async () => {
+  const respuesta = await fetch('http://localhost:3000/api/grupos/1/usuarios/3', {
+    method: 'DELETE'
+  });
+
+  const data = await respuesta.json();
+
+  console.log(data);
+};
+```
+
 # Pruebas en Postman
 
 Para probar la API en Postman:
