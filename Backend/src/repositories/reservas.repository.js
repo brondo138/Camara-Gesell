@@ -63,7 +63,8 @@ const obtenerReservasPorUsuario = async (id_usuario) => {
         INNER JOIN usuarios u ON r.id_usuario_solicitante = u.id_usuario
         INNER JOIN roles ro ON u.id_rol = ro.id_rol
         INNER JOIN grupos g ON r.id_grupo = g.id_grupo
-        WHERE r.id_usuario_solicitante = ?
+        INNER JOIN grupo_usuarios gu ON r.id_grupo = gu.id_grupo
+        WHERE gu.id_usuario = ?
         ORDER BY r.fecha DESC, r.hora_inicio ASC;
     `;
 
