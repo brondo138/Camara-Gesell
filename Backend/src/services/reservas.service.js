@@ -4,25 +4,35 @@ const sesionesRepository = require('../repositories/sesiones.repository');
 const ESTADOS_VALIDOS = ['Pendiente', 'Aprobada', 'Rechazada', 'Cancelada', 'Finalizada'];
 
 const obtenerReservas = async (id_usuario, id_rol) => {
-    // Admin (id_rol 1) ve todas; docente y estudiante solo las suyas
     if (parseInt(id_rol) === 1) {
         return await reservasRepository.obtenerReservas();
     }
+
     return await reservasRepository.obtenerReservasPorUsuario(id_usuario);
 };
 
 const obtenerReservaPorId = async (id_reserva) => {
     const reserva = await reservasRepository.obtenerReservaPorId(id_reserva);
+
     if (!reserva) {
         const error = new Error('La reserva no existe');
         error.statusCode = 404;
         throw error;
     }
+
     return reserva;
 };
 
 const crearReserva = async (body) => {
-    const { id_camara, id_usuario_solicitante, fecha, hora_inicio, hora_fin, motivo } = body;
+    const {
+        id_camara,
+        id_usuario_solicitante,
+        id_grupo,
+        fecha,
+        hora_inicio,
+        hora_fin,
+        motivo
+    } = body;
 
     if (!id_camara || !id_usuario_solicitante || !fecha || !hora_inicio || !hora_fin) {
         const error = new Error('id_camara, id_usuario_solicitante, fecha, hora_inicio y hora_fin son obligatorios');
@@ -42,9 +52,58 @@ const crearReserva = async (body) => {
         throw error;
     }
 
-    const conflicto = await reservasRepository.existeConflictoHorario(
-        id_camara, fecha, hora_inicio, hora_fin
+    const usuario = await reservasRepository.obtenerUsuarioPorId(id_usuario_solicitante);
+
+    if (!usuario) {
+        const error = new Error('El usuario solicitante no existe');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    if (usuario.nombre_rol === 'Administrador') {
+        const error = new Error('Un administrador no puede crear reservas como solicitante de grupo');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    let idGrupoReserva = id_grupo;
+
+    if (!idGrupoReserva) {
+        const gruposUsuario = await reservasRepository.obtenerGruposPorUsuario(id_usuario_solicitante);
+
+        if (gruposUsuario.length === 0) {
+            const error = new Error('El usuario solicitante no pertenece a ningún grupo');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        if (gruposUsuario.length > 1) {
+            const error = new Error('El usuario pertenece a más de un grupo. Debe enviar id_grupo en la reserva');
+            error.statusCode = 400;
+            throw error;
+        }
+
+        idGrupoReserva = gruposUsuario[0].id_grupo;
+    }
+
+    const perteneceGrupo = await reservasRepository.usuarioPerteneceAGrupo(
+        id_usuario_solicitante,
+        idGrupoReserva
     );
+
+    if (!perteneceGrupo) {
+        const error = new Error('El usuario solicitante no pertenece al grupo indicado');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const conflicto = await reservasRepository.existeConflictoHorario(
+        id_camara,
+        fecha,
+        hora_inicio,
+        hora_fin
+    );
+
     if (conflicto) {
         const error = new Error('La cámara ya tiene una reserva en ese horario');
         error.statusCode = 409;
@@ -54,6 +113,7 @@ const crearReserva = async (body) => {
     const insertId = await reservasRepository.crearReserva({
         id_camara,
         id_usuario_solicitante,
+        id_grupo: idGrupoReserva,
         fecha,
         hora_inicio,
         hora_fin,
@@ -80,15 +140,15 @@ const cambiarEstadoReserva = async (id_reserva, estado) => {
 
     await reservasRepository.cambiarEstadoReserva(id_reserva, estado);
 
-    // Al aprobar → crear sesión automáticamente si no existe ya una
     if (estado === 'Aprobada') {
         const sesionExistente = await sesionesRepository.obtenerSesionPorReserva(id_reserva);
+
         if (!sesionExistente) {
             await sesionesRepository.crearSesion({
                 id_reserva,
-                titulo:            reserva.motivo,
-                descripcion:       null,
-                tipo_sesion:       'Entrevista',
+                titulo: reserva.motivo,
+                descripcion: null,
+                tipo_sesion: 'Entrevista',
                 fecha_realizacion: reserva.fecha
             });
         }
@@ -99,8 +159,13 @@ const cambiarEstadoReserva = async (id_reserva, estado) => {
 
 const eliminarReserva = async (id_reserva) => {
     await obtenerReservaPorId(id_reserva);
+
     await reservasRepository.eliminarReserva(id_reserva);
-    return { id_reserva, mensaje: 'Reserva eliminada correctamente' };
+
+    return {
+        id_reserva,
+        mensaje: 'Reserva eliminada correctamente'
+    };
 };
 
 module.exports = {
