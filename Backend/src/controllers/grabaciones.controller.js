@@ -21,10 +21,24 @@ const obtenerGrabacionPorId = async (req, res) => {
 
 const obtenerGrabacionesPorSesion = async (req, res) => {
     try {
-        const grabaciones = await grabacionesService.obtenerGrabacionesPorSesion(req.params.id_sesion);
-        res.json({ success: true, message: 'Grabaciones de sesión obtenidas correctamente', data: grabaciones });
+        const { id_usuario, id_rol } = req.query;
+
+        const grabaciones = await grabacionesService.obtenerGrabacionesPorSesion(
+            req.params.id_sesion,
+            id_usuario,
+            id_rol
+        );
+
+        res.json({
+            success: true,
+            message: 'Grabaciones de sesión obtenidas correctamente',
+            data: grabaciones
+        });
     } catch (error) {
-        res.status(error.statusCode || 500).json({ success: false, message: error.message || 'Error interno del servidor' });
+        res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.message || 'Error interno del servidor'
+        });
     }
 };
 
@@ -57,19 +71,44 @@ const actualizarGrabacion = async (req, res) => {
 
 const cambiarVisibilidad = async (req, res) => {
     try {
-        const grabacion = await grabacionesService.cambiarVisibilidad(req.params.id, req.body.visible);
-        res.json({ success: true, message: 'Visibilidad actualizada correctamente', data: grabacion });
+        const grabacion = await grabacionesService.cambiarVisibilidad(
+            req.params.id,
+            req.body.visible,
+            req.body.id_usuario,
+            req.body.id_rol
+        );
+
+        res.json({
+            success: true,
+            message: 'Visibilidad actualizada correctamente',
+            data: grabacion
+        });
     } catch (error) {
-        res.status(error.statusCode || 500).json({ success: false, message: error.message || 'Error interno del servidor' });
+        res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.message || 'Error interno del servidor'
+        });
     }
 };
 
 const eliminarGrabacion = async (req, res) => {
     try {
-        const resultado = await grabacionesService.eliminarGrabacion(req.params.id);
-        res.json({ success: true, message: resultado.mensaje, data: resultado });
+        const resultado = await grabacionesService.eliminarGrabacion(
+            req.params.id,
+            req.body.id_usuario,
+            req.body.id_rol
+        );
+
+        res.json({
+            success: true,
+            message: resultado.mensaje,
+            data: resultado
+        });
     } catch (error) {
-        res.status(error.statusCode || 500).json({ success: false, message: error.message || 'Error interno del servidor' });
+        res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.message || 'Error interno del servidor'
+        });
     }
 };
 
