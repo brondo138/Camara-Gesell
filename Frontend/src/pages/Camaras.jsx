@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { useNavigate } from "react-router-dom"
 import {
   Camera, Plus, Search, Pencil, Trash2, Power,
   MapPin, FileText, CheckCircle2, XCircle,
   AlertTriangle, Check, ChevronDown, Loader2, X,
 } from "lucide-react"
+import { useAuth } from "../hooks/useAuth"
 import {
   getCamaras,
   createCamara,
@@ -18,6 +20,10 @@ const FORM_EMPTY = { nombre: "", ubicacion: "", descripcion: "", activa: true }
 
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
 export default function Camaras() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const isAdmin = user?.rol === "admin"
+
   const [camaras, setCamaras]           = useState([])
   const [loading, setLoading]           = useState(true)
   const [error, setError]               = useState("")
@@ -34,16 +40,25 @@ export default function Camaras() {
 
   const [toasts, setToasts]             = useState([])
 
+  // ── Verificar permisos ──────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isAdmin) {
+      navigate("/dashboard")
+    }
+  }, [isAdmin, navigate])
+
   // ── Carga inicial ──────────────────────────────────────────────────────────
   useEffect(() => {
-    cargarCamaras()
-  }, [])
+    if (isAdmin) {
+      cargarCamaras()
+    }
+  }, [isAdmin])
 
   async function cargarCamaras() {
     setLoading(true)
     setError("")
     try {
-      const data = await getCamaras()
+      const data = await getCamaras(user?.id, user?.id_rol)
       setCamaras(data)
     } catch (err) {
       setError(err?.response?.data?.message ?? "Error al cargar las cámaras.")
@@ -142,7 +157,6 @@ export default function Camaras() {
       addToast("Cámara eliminada correctamente.")
       setModalEliminar(null)
     } catch (err) {
-      // El backend puede rechazar si hay reservas relacionadas (FK constraint)
       const msg =
         err?.response?.data?.message ??
         "No se puede eliminar: la cámara tiene reservas asociadas."
@@ -154,6 +168,9 @@ export default function Camaras() {
   // ── Contadores para el header ──────────────────────────────────────────────
   const totalActivas   = camaras.filter((c) => Boolean(c.activa)).length
   const totalInactivas = camaras.filter((c) => !Boolean(c.activa)).length
+
+  // Si no es admin, no renderizar nada (la redirección ya está en useEffect)
+  if (!isAdmin) return null
 
   // ─── RENDER ─────────────────────────────────────────────────────────────────
   return (
@@ -173,14 +190,16 @@ export default function Camaras() {
               </p>
             </div>
           </div>
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={abrirNueva}
-            className="flex items-center gap-2 bg-[#1e3a5f] hover:bg-[#16304f] text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Nueva cámara
-          </motion.button>
+          {isAdmin && (
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={abrirNueva}
+              className="flex items-center gap-2 bg-[#1e3a5f] hover:bg-[#16304f] text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Nueva cámara
+            </motion.button>
+          )}
         </div>
       </div>
 
@@ -259,6 +278,7 @@ export default function Camaras() {
                 <CamaraCard
                   key={camara.id_camara}
                   camara={camara}
+                  isAdmin={isAdmin}
                   onEdit={() => abrirEditar(camara)}
                   onDelete={() => setModalEliminar(camara)}
                   onToggle={() => handleToggleEstado(camara)}
@@ -308,7 +328,7 @@ export default function Camaras() {
 }
 
 // ─── CARD ─────────────────────────────────────────────────────────────────────
-function CamaraCard({ camara, onEdit, onDelete, onToggle }) {
+function CamaraCard({ camara, isAdmin, onEdit, onDelete, onToggle }) {
   const activa = Boolean(camara.activa)
 
   return (
@@ -361,34 +381,36 @@ function CamaraCard({ camara, onEdit, onDelete, onToggle }) {
           <div className="mb-4" />
         )}
 
-        {/* Acciones */}
-        <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
-          <button
-            onClick={onEdit}
-            className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-[#1e3a5f] border border-slate-200 hover:border-[#1e3a5f]/30 rounded-lg px-3 py-1.5 transition-colors"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-            Editar
-          </button>
-          <button
-            onClick={onToggle}
-            className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-1.5 transition-colors ${
-              activa
-                ? "text-amber-600 hover:text-amber-700 border-slate-200 hover:border-amber-200"
-                : "text-emerald-600 hover:text-emerald-700 border-slate-200 hover:border-emerald-200"
-            }`}
-          >
-            <Power className="w-3.5 h-3.5" />
-            {activa ? "Desactivar" : "Activar"}
-          </button>
-          <button
-            onClick={onDelete}
-            className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 border border-slate-200 hover:border-red-200 rounded-lg px-3 py-1.5 transition-colors ml-auto"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            Eliminar
-          </button>
-        </div>
+        {/* Acciones - solo visible para admin */}
+        {isAdmin && (
+          <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
+            <button
+              onClick={onEdit}
+              className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-[#1e3a5f] border border-slate-200 hover:border-[#1e3a5f]/30 rounded-lg px-3 py-1.5 transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Editar
+            </button>
+            <button
+              onClick={onToggle}
+              className={`flex items-center gap-1.5 text-xs border rounded-lg px-3 py-1.5 transition-colors ${
+                activa
+                  ? "text-amber-600 hover:text-amber-700 border-slate-200 hover:border-amber-200"
+                  : "text-emerald-600 hover:text-emerald-700 border-slate-200 hover:border-emerald-200"
+              }`}
+            >
+              <Power className="w-3.5 h-3.5" />
+              {activa ? "Desactivar" : "Activar"}
+            </button>
+            <button
+              onClick={onDelete}
+              className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 border border-slate-200 hover:border-red-200 rounded-lg px-3 py-1.5 transition-colors ml-auto"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Eliminar
+            </button>
+          </div>
+        )}
       </div>
     </motion.div>
   )

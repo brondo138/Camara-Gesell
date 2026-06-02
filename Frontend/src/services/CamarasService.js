@@ -1,8 +1,8 @@
 import api from "./api"
 
 // ─── OBTENER TODAS LAS CÁMARAS ────────────────────────────────────────────────
-export const getCamaras = async () => {
-  const { data } = await api.get("/camaras")
+export const getCamaras = async (id_usuario, id_rol) => {
+  const { data } = await api.get("/camaras", { params: { id_usuario, id_rol } })
   return data.data // array de cámaras
 }
 
@@ -14,19 +14,17 @@ export const getCamaraById = async (id) => {
 
 // ─── CREAR CÁMARA ─────────────────────────────────────────────────────────────
 export const createCamara = async (payload) => {
-  // payload: { nombre, ubicacion?, descripcion?, activa? }
   const { data } = await api.post("/camaras", payload)
   return data.data
 }
 
 // ─── ACTUALIZAR CÁMARA ────────────────────────────────────────────────────────
 export const updateCamara = async (id, payload) => {
-  // payload: { nombre, ubicacion?, descripcion?, activa }
   const { data } = await api.put(`/camaras/${id}`, payload)
   return data.data
 }
 
-// ─── CAMBIAR ESTADO (activar / desactivar) ────────────────────────────────────
+// ─── CAMBIAR ESTADO ───────────────────────────────────────────────────────────
 export const toggleEstadoCamara = async (id, activa) => {
   const { data } = await api.patch(`/camaras/${id}/estado`, { activa })
   return data.data

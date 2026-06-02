@@ -32,7 +32,7 @@ export default function AppRouter() {
           <Route element={<AppLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard"      element={<Dashboard />} />
-            <Route path="/camaras"        element={<Camaras />} />
+            {/* <Route path="/camaras"        element={<Camaras />} />  ELIMINAR ESTA LÍNEA */}
             <Route path="/reservas"       element={<Reservas />} />
             <Route path="/reservas/nueva" element={<NuevaReserva />} />
             <Route path="/sesiones"       element={<Sesiones />} />
@@ -42,6 +42,7 @@ export default function AppRouter() {
             {/* Solo admin */}
             <Route element={<PrivateRoute roles={["admin"]} />}>
               <Route path="/usuarios" element={<Usuarios />} />
+              <Route path="/camaras"  element={<Camaras />} />  {/* 👈 AGREGAR AQUÍ */}
             </Route>
 
             {/* Admin + docente */}
