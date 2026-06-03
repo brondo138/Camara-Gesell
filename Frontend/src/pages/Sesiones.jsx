@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { useNavigate } from "react-router-dom"
 import {
   AlertCircle, CalendarClock, Camera, CheckCircle2, ChevronRight,
-  Clock, Eye, Filter, Search, UserRound, Users, Video, XCircle
+  Clock, Eye, Filter, Search, UserRound, Users, Video, XCircle, X
 } from "lucide-react"
 import { useAuth } from "../hooks/useAuth"
 
@@ -160,28 +160,120 @@ function StatCard({ label, value, icon: Icon, tone }) {
   )
 }
 
-function SesionMobileCard({ sesion, onOpen }) {
-  return (
-    <motion.button
-      type="button"
-      variants={itemVariants}
-      onClick={onOpen}
-      className="w-full text-left rounded-xl border border-slate-200 bg-white p-4 hover:border-blue-200 hover:bg-blue-50/30 transition-all"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-800 truncate">{sesion.titulo}</p>
-          <p className="text-xs text-slate-400 mt-1">{formatFecha(sesion.fecha)} · {sesion.hora_inicio} - {sesion.hora_fin}</p>
-        </div>
-        <EstadoBadge estado={sesion.estado} />
-      </div>
+function SesionMobileCard({ sesion, onOpen, onCancel }) {
+  const puedeCancelar = sesion.estado === "programada" || sesion.estado === "en_curso"
 
-      <div className="grid grid-cols-2 gap-2 mt-4 text-xs text-slate-500">
-        <span className="flex items-center gap-1.5 min-w-0"><Camera size={13} className="text-slate-300" />{sesion.camara}</span>
-        <span className="flex items-center gap-1.5 min-w-0"><UserRound size={13} className="text-slate-300" />{sesion.docente}</span>
-        <span className="flex items-center gap-1.5 min-w-0 col-span-2"><Users size={13} className="text-slate-300" />{sesion.estudiante}</span>
-      </div>
-    </motion.button>
+  return (
+    <motion.div
+      variants={itemVariants}
+      className="w-full rounded-xl border border-slate-200 bg-white p-4 hover:border-blue-200 hover:bg-blue-50/30 transition-all"
+    >
+      <button type="button" onClick={onOpen} className="w-full text-left">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-800 truncate">{sesion.titulo}</p>
+            <p className="text-xs text-slate-400 mt-1">{formatFecha(sesion.fecha)} · {sesion.hora_inicio} - {sesion.hora_fin}</p>
+          </div>
+          <EstadoBadge estado={sesion.estado} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 mt-4 text-xs text-slate-500">
+          <span className="flex items-center gap-1.5 min-w-0"><Camera size={13} className="text-slate-300" />{sesion.camara}</span>
+          <span className="flex items-center gap-1.5 min-w-0"><UserRound size={13} className="text-slate-300" />{sesion.docente}</span>
+          <span className="flex items-center gap-1.5 min-w-0 col-span-2"><Users size={13} className="text-slate-300" />{sesion.estudiante}</span>
+        </div>
+      </button>
+
+      {puedeCancelar && (
+        <button
+          type="button"
+          onClick={onCancel}
+          className="mt-4 w-full flex items-center justify-center gap-1.5 h-8 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold transition-colors"
+        >
+          <X size={13} /> Cancelar sesion
+        </button>
+      )}
+    </motion.div>
+  )
+}
+
+function SesionesCanceladasModal({ sesiones, onClose, onRestore }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={{ duration: 0.2 }}
+        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl z-10 overflow-hidden"
+      >
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
+              <XCircle size={15} className="text-red-600" />
+            </div>
+            <div>
+              <h2 className="text-sm font-semibold text-slate-800">Sesiones canceladas</h2>
+              <p className="text-[11px] text-slate-400">Restaura una sesion si fue cancelada por error.</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="max-h-[60vh] overflow-y-auto p-5">
+          {sesiones.length === 0 ? (
+            <div className="py-12 text-center">
+              <Video size={32} className="text-slate-200 mx-auto mb-3" />
+              <p className="text-sm text-slate-400">No hay sesiones canceladas.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {sesiones.map(sesion => (
+                <div key={sesion.id_sesion} className="rounded-xl border border-slate-200 bg-white p-4 flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-800 truncate">{sesion.titulo}</p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {formatFecha(sesion.fecha)} · {sesion.hora_inicio} - {sesion.hora_fin}
+                    </p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 text-xs text-slate-500">
+                      <span className="inline-flex items-center gap-1.5"><Camera size={12} className="text-slate-300" />{sesion.camara}</span>
+                      <span className="inline-flex items-center gap-1.5"><UserRound size={12} className="text-slate-300" />{sesion.docente}</span>
+                      <span className="inline-flex items-center gap-1.5"><Users size={12} className="text-slate-300" />{sesion.estudiante}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onRestore(sesion)}
+                    className="shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-lg bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold transition-colors"
+                  >
+                    Restaurar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-9 px-4 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-semibold transition-colors"
+          >
+            Cerrar
+          </button>
+        </div>
+      </motion.div>
+    </div>
   )
 }
 
@@ -191,14 +283,16 @@ export default function Sesiones() {
   const isAdmin = user?.rol === "admin"
   const isDocente = user?.rol === "docente"
 
+  const [sesiones, setSesiones] = useState(MOCK_SESIONES)
   const [search, setSearch] = useState("")
   const [filtroEstado, setFiltroEstado] = useState("todos")
+  const [showCanceladas, setShowCanceladas] = useState(false)
 
   const sesionesVisibles = useMemo(() => {
-    if (isAdmin) return MOCK_SESIONES
-    if (isDocente) return MOCK_SESIONES.filter(s => s.id_docente === MOCK_USER_ID.docente)
-    return MOCK_SESIONES.filter(s => s.id_estudiante === MOCK_USER_ID.estudiante)
-  }, [isAdmin, isDocente])
+    if (isAdmin) return sesiones
+    if (isDocente) return sesiones.filter(s => s.id_docente === MOCK_USER_ID.docente)
+    return sesiones.filter(s => s.id_estudiante === MOCK_USER_ID.estudiante)
+  }, [isAdmin, isDocente, sesiones])
 
   const filtered = sesionesVisibles.filter(s => {
     const term = search.toLowerCase()
@@ -235,6 +329,16 @@ export default function Sesiones() {
     { key: "cancelada", label: "Canceladas" },
   ]
 
+  const handleCancelar = (sesion) => {
+    const ok = window.confirm(`¿Cancelar la sesion "${sesion.titulo}"? El registro quedara como historial.`)
+    if (!ok) return
+    setSesiones(prev => prev.map(s => s.id_sesion === sesion.id_sesion ? { ...s, estado: "cancelada" } : s))
+  }
+
+  const handleRestaurar = (sesion) => {
+    setSesiones(prev => prev.map(s => s.id_sesion === sesion.id_sesion ? { ...s, estado: "programada" } : s))
+  }
+
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-5">
       <motion.div variants={itemVariants} className="flex items-start justify-between flex-wrap gap-3">
@@ -244,9 +348,22 @@ export default function Sesiones() {
             {isAdmin ? "Control de sesiones asociadas a reservas aprobadas." : "Consulta tus sesiones y el seguimiento de cada cita."}
           </p>
         </div>
-        <div className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-white border border-slate-200 text-xs text-slate-500">
-          <Filter size={14} className="text-slate-400" />
-          {isAdmin ? "Vista global" : isDocente ? "Mis sesiones docentes" : "Mis sesiones asignadas"}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setShowCanceladas(true)}
+            className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold transition-colors"
+          >
+            <XCircle size={14} />
+            Sesiones canceladas
+            <span className="px-1.5 py-0.5 rounded-full bg-white/70 text-[10px] font-bold">
+              {counts.cancelada}
+            </span>
+          </button>
+          <div className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-white border border-slate-200 text-xs text-slate-500">
+            <Filter size={14} className="text-slate-400" />
+            {isAdmin ? "Vista global" : isDocente ? "Mis sesiones docentes" : "Mis sesiones asignadas"}
+          </div>
         </div>
       </motion.div>
 
@@ -310,7 +427,7 @@ export default function Sesiones() {
                   <th className="text-left text-[11px] font-medium text-slate-400 px-4 py-3">Sala</th>
                   <th className="text-left text-[11px] font-medium text-slate-400 px-4 py-3">Fecha</th>
                   <th className="text-left text-[11px] font-medium text-slate-400 px-4 py-3">Estado</th>
-                  <th className="text-right text-[11px] font-medium text-slate-400 px-5 py-3">Detalle</th>
+                  <th className="text-right text-[11px] font-medium text-slate-400 px-5 py-3">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -344,10 +461,25 @@ export default function Sesiones() {
                       </p>
                     </td>
                     <td className="px-4 py-3.5"><EstadoBadge estado={s.estado} /></td>
-                    <td className="px-5 py-3.5 text-right">
-                      <button className="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {(s.estado === "programada" || s.estado === "en_curso") && (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleCancelar(s)
+                            }}
+                            className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-[11px] font-semibold transition-all"
+                          >
+                            <X size={13} />
+                            Cancelar
+                          </button>
+                        )}
+                        <button className="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
                         <ChevronRight size={16} />
                       </button>
+                      </div>
                     </td>
                   </motion.tr>
                 ))}
@@ -365,10 +497,24 @@ export default function Sesiones() {
           </div>
         ) : (
           filtered.map(s => (
-            <SesionMobileCard key={s.id_sesion} sesion={s} onOpen={() => navigate(`/sesiones/${s.id_sesion}`)} />
+            <SesionMobileCard
+              key={s.id_sesion}
+              sesion={s}
+              onOpen={() => navigate(`/sesiones/${s.id_sesion}`)}
+              onCancel={() => handleCancelar(s)}
+            />
           ))
         )}
       </div>
+      <AnimatePresence>
+        {showCanceladas && (
+          <SesionesCanceladasModal
+            sesiones={sesionesVisibles.filter(s => s.estado === "cancelada")}
+            onClose={() => setShowCanceladas(false)}
+            onRestore={handleRestaurar}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   )
 }

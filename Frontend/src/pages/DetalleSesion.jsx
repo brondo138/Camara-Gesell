@@ -1,9 +1,9 @@
-import { useMemo } from "react"
+import { useMemo, useState } from "react"
 import { Link, useParams } from "react-router-dom"
 import { motion } from "framer-motion"
 import {
   ArrowLeft, CalendarClock, Camera, CheckCircle2, Clock,
-  FileText, MessageSquareText, UserRound, Users, Video, XCircle
+  FileText, MessageSquareText, UserRound, Users, Video, XCircle, X
 } from "lucide-react"
 
 const MOCK_SESIONES = [
@@ -141,7 +141,16 @@ function InfoItem({ icon: Icon, label, value }) {
 
 export default function DetalleSesion() {
   const { id } = useParams()
-  const sesion = useMemo(() => MOCK_SESIONES.find(s => String(s.id_sesion) === String(id)), [id])
+  const sesionBase = useMemo(() => MOCK_SESIONES.find(s => String(s.id_sesion) === String(id)), [id])
+  const [estadoSesion, setEstadoSesion] = useState(sesionBase?.estado)
+  const sesion = sesionBase ? { ...sesionBase, estado: estadoSesion } : null
+  const puedeCancelar = sesion?.estado === "programada" || sesion?.estado === "en_curso"
+
+  const handleCancelar = () => {
+    const ok = window.confirm(`¿Cancelar la sesion "${sesion.titulo}"? El registro quedara como historial.`)
+    if (!ok) return
+    setEstadoSesion("cancelada")
+  }
 
   if (!sesion) {
     return (
@@ -168,7 +177,18 @@ export default function DetalleSesion() {
           <h1 className="text-xl font-semibold text-slate-800 leading-tight">{sesion.titulo}</h1>
           <p className="text-sm text-slate-400 mt-0.5">Reserva #{sesion.id_reserva} · {sesion.motivo}</p>
         </div>
-        <EstadoBadge estado={sesion.estado} />
+        <div className="flex items-center gap-2 flex-wrap">
+          {puedeCancelar && (
+            <button
+              type="button"
+              onClick={handleCancelar}
+              className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold transition-colors"
+            >
+              <X size={14} /> Cancelar sesion
+            </button>
+          )}
+          <EstadoBadge estado={sesion.estado} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">

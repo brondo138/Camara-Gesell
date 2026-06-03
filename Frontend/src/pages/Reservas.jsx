@@ -2,9 +2,9 @@ import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useNavigate } from "react-router-dom"
 import {
-  CalendarCheck, Plus, Search, Filter,
+  CalendarCheck, Plus, Search,
   CheckCircle2, XCircle, AlertCircle, Clock,
-  ChevronRight, Camera, Users, Eye,
+  Camera, Eye,
   X, Check
 } from "lucide-react"
 import { useAuth } from "../hooks/useAuth"
@@ -29,6 +29,7 @@ const ESTADO_CONFIG = {
   pendiente: { label: "Pendiente", icon: AlertCircle,  cls: "bg-amber-50 text-amber-700 border-amber-200"       },
   aprobada:  { label: "Aprobada",  icon: CheckCircle2, cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
   rechazada: { label: "Rechazada", icon: XCircle,      cls: "bg-red-50 text-red-700 border-red-200"             },
+  cancelada: { label: "Cancelada", icon: XCircle,      cls: "bg-slate-100 text-slate-600 border-slate-200"      },
 }
 
 function EstadoBadge({ estado }) {
@@ -59,6 +60,8 @@ const itemVariants = {
 // ─── Modal detalle / aprobar-rechazar (Admin) ─────────────────────────────────
 
 function DetalleModal({ reserva, onClose, onAprobar, onRechazar, onCancelar, isAdmin }) {
+  const puedeCancelar = reserva.estado === "pendiente" || reserva.estado === "aprobada"
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div
@@ -111,6 +114,14 @@ function DetalleModal({ reserva, onClose, onAprobar, onRechazar, onCancelar, isA
               {reserva.motivo}
             </p>
           </div>
+
+          {puedeCancelar && (
+            <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2.5">
+              <p className="text-xs text-amber-800 leading-relaxed">
+                Cancelar conserva el registro como historial y libera la solicitud sin borrarla del sistema.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Footer con acciones */}
@@ -133,17 +144,17 @@ function DetalleModal({ reserva, onClose, onAprobar, onRechazar, onCancelar, isA
             </>
           )}
 
-          {/* Cancelar si está pendiente (dueño o admin) */}
-          {reserva.estado === "pendiente" && (
+          {/* Cancelar si aun no finaliza */}
+          {puedeCancelar && (
             <button
               onClick={() => { onCancelar(reserva); onClose() }}
-              className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-semibold transition-colors"
+              className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold transition-colors"
             >
               <X size={14} /> Cancelar reserva
             </button>
           )}
 
-          {reserva.estado !== "pendiente" && (
+          {!puedeCancelar && reserva.estado !== "pendiente" && (
             <button onClick={onClose} className="h-9 px-4 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-semibold transition-colors">
               Cerrar
             </button>
@@ -187,17 +198,19 @@ export default function Reservas() {
     pendiente: misReservas.filter(r => r.estado === "pendiente").length,
     aprobada:  misReservas.filter(r => r.estado === "aprobada").length,
     rechazada: misReservas.filter(r => r.estado === "rechazada").length,
+    cancelada: misReservas.filter(r => r.estado === "cancelada").length,
   }
 
   const handleAprobar  = (r) => setReservas(prev => prev.map(x => x.id_reserva === r.id_reserva ? { ...x, estado: "aprobada"  } : x))
   const handleRechazar = (r) => setReservas(prev => prev.map(x => x.id_reserva === r.id_reserva ? { ...x, estado: "rechazada" } : x))
-  const handleCancelar = (r) => setReservas(prev => prev.filter(x => x.id_reserva !== r.id_reserva))
+  const handleCancelar = (r) => setReservas(prev => prev.map(x => x.id_reserva === r.id_reserva ? { ...x, estado: "cancelada" } : x))
 
   const FILTROS = [
     { key: "todos",     label: "Todas"     },
     { key: "pendiente", label: "Pendientes" },
     { key: "aprobada",  label: "Aprobadas" },
     { key: "rechazada", label: "Rechazadas" },
+    { key: "cancelada", label: "Canceladas" },
   ]
 
   return (
