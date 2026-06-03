@@ -15,7 +15,7 @@ export const getReservaById = async (id) => {
 }
 
 // ─── CREAR RESERVA ────────────────────────────────────────────────────────────
-// payload: { id_camara, id_usuario_solicitante, fecha, hora_inicio, hora_fin, motivo }
+// payload: { id_camara, id_usuario_solicitante, id_grupo, fecha, hora_inicio, hora_fin, motivo }
 export const createReserva = async (payload) => {
   const { data } = await api.post("/reservas", payload)
   return data.data

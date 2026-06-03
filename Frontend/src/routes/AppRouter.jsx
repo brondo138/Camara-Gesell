@@ -15,7 +15,7 @@ import Grabaciones   from "../pages/Grabaciones"
 import Reportes      from "../pages/Reportes"
 import Perfil        from "../pages/Perfil"
 import NotFound      from "../pages/NotFound"
-
+import Grupos from "../pages/Grupos"
 
 export default function AppRouter() {
   return (
@@ -42,7 +42,8 @@ export default function AppRouter() {
             {/* Solo admin */}
             <Route element={<PrivateRoute roles={["admin"]} />}>
               <Route path="/usuarios" element={<Usuarios />} />
-              <Route path="/camaras"  element={<Camaras />} />  {/* 👈 AGREGAR AQUÍ */}
+              <Route path="/camaras"  element={<Camaras />} />  
+               <Route path="/grupos"   element={<Grupos />} />
             </Route>
 
             {/* Admin + docente */}

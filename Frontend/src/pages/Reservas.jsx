@@ -4,10 +4,11 @@ import { useNavigate } from "react-router-dom"
 import {
   CalendarCheck, Plus, Search,
   CheckCircle2, XCircle, AlertCircle, Clock,
-  Camera, Eye, X, Check, Loader2, AlertTriangle
+  Camera, Eye, X, Check, Loader2, AlertTriangle, Users
 } from "lucide-react"
 import { useAuth } from "../hooks/useAuth"
-import { getReservas, cambiarEstadoReserva,  } from "../services/reservasService"
+import { getReservas, cambiarEstadoReserva } from "../services/reservasService"
+import { getGrupos, getMiembrosGrupo } from "../services/gruposService"
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -38,7 +39,6 @@ function formatFecha(iso) {
 
 function formatHora(time) {
   if (!time) return "—"
-  // MySQL devuelve TIME como "HH:MM:SS", mostramos solo HH:MM
   return time.slice(0, 5)
 }
 
@@ -89,9 +89,10 @@ function DetalleModal({ reserva, isAdmin, onClose, onAprobar, onRechazar, onCanc
           </div>
           {[
             { label: "Solicitante", value: `${reserva.nombre_solicitante} ${reserva.apellido_solicitante} (${reserva.rol_solicitante})` },
-            { label: "Cámara",      value: reserva.camara },
-            { label: "Fecha",       value: formatFecha(reserva.fecha) },
-            { label: "Horario",     value: `${formatHora(reserva.hora_inicio)} – ${formatHora(reserva.hora_fin)}` },
+            { label: "Grupo", value: reserva.grupo || "—" },
+            { label: "Cámara", value: reserva.camara },
+            { label: "Fecha", value: formatFecha(reserva.fecha) },
+            { label: "Horario", value: `${formatHora(reserva.hora_inicio)} – ${formatHora(reserva.hora_fin)}` },
           ].map(({ label, value }) => (
             <div key={label} className="flex justify-between items-start gap-4">
               <span className="text-xs text-slate-400 shrink-0">{label}</span>
@@ -155,22 +156,45 @@ export default function Reservas() {
   const [error, setError]             = useState("")
   const [search, setSearch]           = useState("")
   const [filtroEstado, setFiltroEstado] = useState("todos")
+  const [filtroGrupo, setFiltroGrupo] = useState("todos")
   const [selected, setSelected]       = useState(null)
   const [toasts, setToasts]           = useState([])
+  const [grupos, setGrupos]           = useState([])
 
   // ── Carga inicial ────────────────────────────────────────────────────────
   useEffect(() => {
-    cargarReservas()
+    cargarDatos()
   }, [])
 
-  async function cargarReservas() {
+  async function cargarDatos() {
     setLoading(true)
     setError("")
     try {
-      const data = await getReservas(user?.id, user?.id_rol)
-      setReservas(data)
+      const [reservasData, gruposData] = await Promise.all([
+        getReservas(user?.id, user?.id_rol),
+        getGrupos(user?.id, user?.id_rol)
+      ])
+      
+      // Crear un mapa de grupos por id_grupo
+      const grupoMap = {}
+      for (const grupo of gruposData) {
+        const miembros = await getMiembrosGrupo(grupo.id_grupo)
+        grupoMap[grupo.id_grupo] = {
+          nombre: grupo.nombre,
+          miembros: miembros.map(m => m.id_usuario)
+        }
+      }
+      
+      // Enriquecer las reservas con el nombre del grupo
+      const reservasEnriquecidas = reservasData.map(reserva => ({
+        ...reserva,
+        grupo: grupoMap[reserva.id_grupo]?.nombre || "—"
+      }))
+      
+      setReservas(reservasEnriquecidas)
+      setGrupos(gruposData)
     } catch (err) {
-      setError(err?.response?.data?.message ?? "Error al cargar las reservas.")
+      setError(err?.response?.data?.message ?? "Error al cargar los datos.")
     } finally {
       setLoading(false)
     }
@@ -187,7 +211,7 @@ export default function Reservas() {
   async function handleAprobar(reserva) {
     try {
       const actualizada = await cambiarEstadoReserva(reserva.id_reserva, "Aprobada")
-      setReservas(prev => prev.map(r => r.id_reserva === actualizada.id_reserva ? actualizada : r))
+      await cargarDatos()
       addToast("Reserva aprobada correctamente.")
     } catch (err) {
       addToast(err?.response?.data?.message ?? "Error al aprobar la reserva.", "error")
@@ -197,7 +221,7 @@ export default function Reservas() {
   async function handleRechazar(reserva) {
     try {
       const actualizada = await cambiarEstadoReserva(reserva.id_reserva, "Rechazada")
-      setReservas(prev => prev.map(r => r.id_reserva === actualizada.id_reserva ? actualizada : r))
+      await cargarDatos()
       addToast("Reserva rechazada.", "warning")
     } catch (err) {
       addToast(err?.response?.data?.message ?? "Error al rechazar la reserva.", "error")
@@ -207,7 +231,7 @@ export default function Reservas() {
   async function handleCancelar(reserva) {
     try {
       const actualizada = await cambiarEstadoReserva(reserva.id_reserva, "Cancelada")
-      setReservas(prev => prev.map(r => r.id_reserva === actualizada.id_reserva ? actualizada : r))
+      await cargarDatos()
       addToast("Reserva cancelada.", "warning")
     } catch (err) {
       addToast(err?.response?.data?.message ?? "Error al cancelar la reserva.", "error")
@@ -221,11 +245,13 @@ export default function Reservas() {
       const matchSearch =
         solicitante.includes(search.toLowerCase()) ||
         r.camara.toLowerCase().includes(search.toLowerCase()) ||
-        (r.motivo ?? "").toLowerCase().includes(search.toLowerCase())
+        (r.motivo ?? "").toLowerCase().includes(search.toLowerCase()) ||
+        (r.grupo?.toLowerCase() || "").includes(search.toLowerCase())
       const matchEstado = filtroEstado === "todos" || r.estado === filtroEstado
-      return matchSearch && matchEstado
+      const matchGrupo = filtroGrupo === "todos" || r.id_grupo === parseInt(filtroGrupo)
+      return matchSearch && matchEstado && matchGrupo
     })
-  }, [reservas, search, filtroEstado])
+  }, [reservas, search, filtroEstado, filtroGrupo])
 
   const counts = useMemo(() => ({
     todos:     reservas.length,
@@ -285,6 +311,21 @@ export default function Reservas() {
               </span>
             </button>
           ))}
+          
+          {/* Filtro por grupo (solo visible para admin) */}
+          {isAdmin && grupos.length > 0 && (
+            <select
+              value={filtroGrupo}
+              onChange={(e) => setFiltroGrupo(e.target.value)}
+              className="h-8 px-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            >
+              <option value="todos">Todos los grupos</option>
+              {grupos.map(g => (
+                <option key={g.id_grupo} value={g.id_grupo}>{g.nombre}</option>
+              ))}
+            </select>
+          )}
+          
           <div className="relative ml-auto">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
@@ -322,7 +363,7 @@ export default function Reservas() {
                 <AlertTriangle className="w-5 h-5 text-red-500" />
               </div>
               <p className="text-sm text-slate-600">{error}</p>
-              <button onClick={cargarReservas} className="text-sm text-blue-600 hover:underline font-medium">
+              <button onClick={cargarDatos} className="text-sm text-blue-600 hover:underline font-medium">
                 Reintentar
               </button>
             </div>
@@ -350,6 +391,7 @@ export default function Reservas() {
                   <tr className="border-b border-slate-100">
                     {isAdmin && <th className="text-left text-[11px] font-medium text-slate-400 px-5 py-3">Solicitante</th>}
                     <th className="text-left text-[11px] font-medium text-slate-400 px-5 py-3">Cámara</th>
+                    {isAdmin && <th className="text-left text-[11px] font-medium text-slate-400 px-5 py-3">Grupo</th>}
                     <th className="text-left text-[11px] font-medium text-slate-400 px-4 py-3 hidden sm:table-cell">Fecha</th>
                     <th className="text-left text-[11px] font-medium text-slate-400 px-4 py-3 hidden md:table-cell">Horario</th>
                     <th className="text-left text-[11px] font-medium text-slate-400 px-4 py-3">Estado</th>
@@ -382,6 +424,14 @@ export default function Reservas() {
                           <span className="font-medium text-slate-700 text-sm">{r.camara}</span>
                         </div>
                       </td>
+                      {isAdmin && (
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-1.5">
+                            <Users size={11} className="text-slate-400" />
+                            <span className="text-xs text-slate-600">{r.grupo}</span>
+                          </div>
+                        </td>
+                      )}
                       <td className="px-4 py-3.5 text-slate-500 text-xs hidden sm:table-cell">
                         {formatFecha(r.fecha)}
                       </td>

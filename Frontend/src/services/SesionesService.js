@@ -22,8 +22,8 @@ export const createSesion = async (payload) => {
 }
 
 // ─── ACTUALIZAR SESIÓN ────────────────────────────────────────────────────────
-export const updateSesion = async (id, payload) => {
-  const { data } = await api.put(`/sesiones/${id}`, payload)
+export async function updateSesion(id, campos) {
+  const { data } = await api.put(`/sesiones/${id}`, campos)
   return data.data
 }
 

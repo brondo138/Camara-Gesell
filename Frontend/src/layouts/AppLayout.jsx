@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { to: "/dashboard",   label: "Dashboard",    icon: LayoutDashboard, roles: ["admin","docente","estudiante"] },
   { to: "/usuarios",    label: "Usuarios",     icon: Users,           roles: ["admin"] },
   { to: "/camaras",     label: "Cámaras",      icon: Camera,          roles: ["admin"] },
+  { to: "/grupos",      label: "Grupos",       icon: Users,           roles: ["admin"] },  // 👈 AGREGAR
   { to: "/reservas",    label: "Reservas",     icon: CalendarCheck,   roles: ["admin","docente","estudiante"] },
   { to: "/sesiones",    label: "Sesiones",     icon: Video,           roles: ["admin","docente","estudiante"] },
   { to: "/grabaciones", label: "Grabaciones",  icon: BookOpen,        roles: ["admin","docente"] },
