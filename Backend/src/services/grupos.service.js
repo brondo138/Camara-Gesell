@@ -1,4 +1,5 @@
 const GruposRepository = require('../repositories/grupos.repository');
+const sesionesRepository = require('../repositories/sesiones.repository');
 
 const GruposService = {
     async obtenerTodos() {
@@ -270,6 +271,23 @@ const GruposService = {
             message: 'Usuario removido del grupo correctamente'
         };
     }
+};
+
+const eliminarGrupo = async (id_grupo) => {
+    const grupo = await obtenerGrupoPorId(id_grupo); // ya valida 404
+
+    const tieneProgramadas = await sesionesRepository.tieneSesionesProgramadas(id_grupo);
+    if (tieneProgramadas) {
+        const error = new Error(
+            'No se puede eliminar el grupo porque tiene sesiones programadas activas. ' +
+            'Cancela o concluye todas las sesiones primero.'
+        );
+        error.statusCode = 409;
+        throw error;
+    }
+
+    await gruposRepository.eliminarGrupo(id_grupo);
+    return { id_grupo, mensaje: 'Grupo eliminado correctamente' };
 };
 
 module.exports = GruposService;

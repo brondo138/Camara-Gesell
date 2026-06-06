@@ -149,11 +149,27 @@ const cambiarEstadoSesion = async (id_sesion, estado) => {
 
     return await sesionesRepository.obtenerSesionPorId(id_sesion);
 };
+const eliminarSesion = async (id_sesion) => {
+    const sesion = await obtenerSesionPorId(id_sesion) // valida 404
+
+    if (sesion.estado === 'Programada') {
+        const error = new Error(
+            'No se puede eliminar una sesión programada. ' +
+            'Primero márcala como Realizada o Cancelada.'
+        )
+        error.statusCode = 400
+        throw error
+    }
+
+    await sesionesRepository.eliminarSesion(id_sesion)
+    return { id_sesion, mensaje: 'Sesión eliminada correctamente' }
+}
 
 module.exports = {
     obtenerSesiones,
     obtenerSesionPorId,
     crearSesion,
     actualizarSesion,
-    cambiarEstadoSesion
-};
+    cambiarEstadoSesion,
+    eliminarSesion       // ← agregar
+}

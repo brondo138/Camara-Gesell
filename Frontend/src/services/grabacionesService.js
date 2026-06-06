@@ -46,7 +46,10 @@ export const cambiarVisibilidad = async (id, visible) => {
 }
 
 // ─── ELIMINAR GRABACIÓN ───────────────────────────────────────────────────────
-export const deleteGrabacion = async (id) => {
-  const { data } = await api.delete(`/grabaciones/${id}`)
+// DESPUÉS
+export const deleteGrabacion = async (id, id_usuario, id_rol) => {
+  const { data } = await api.delete(`/grabaciones/${id}`, {
+    data: { id_usuario, id_rol }
+  })
   return data
 }

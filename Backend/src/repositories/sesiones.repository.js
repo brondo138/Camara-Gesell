@@ -223,6 +223,24 @@ const cambiarEstadoSesion = async (id_sesion, estado) => {
     return result.affectedRows;
 };
 
+const eliminarSesion = async (id_sesion) => {
+    const [result] = await pool.query(
+        `DELETE FROM sesiones WHERE id_sesion = ?`,
+        [id_sesion]
+    );
+    return result.affectedRows;
+};
+
+const tieneSesionesProgramadas = async (id_grupo) => {
+    const [rows] = await pool.query(`
+        SELECT COUNT(*) AS total 
+        FROM sesiones s
+        INNER JOIN reservas r ON s.id_reserva = r.id_reserva
+        WHERE r.id_grupo = ? AND s.estado = 'Programada'
+    `, [id_grupo]);
+    return rows[0].total > 0;
+};
+
 module.exports = {
     obtenerSesiones,
     obtenerSesionesPorUsuario,
@@ -231,5 +249,7 @@ module.exports = {
     obtenerReservaPorId,
     crearSesion,
     actualizarSesion,
-    cambiarEstadoSesion
+    cambiarEstadoSesion,
+    eliminarSesion,
+    tieneSesionesProgramadas
 };

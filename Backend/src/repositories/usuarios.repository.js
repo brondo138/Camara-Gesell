@@ -130,6 +130,15 @@ const eliminarUsuario = async (id_usuario) => {
 
     return result.affectedRows;
 };
+const perteneceAGrupoActivo = async (id_usuario) => {
+    const [rows] = await pool.query(`
+        SELECT COUNT(*) AS total
+        FROM grupo_usuarios gu
+        INNER JOIN grupos g ON gu.id_grupo = g.id_grupo
+        WHERE gu.id_usuario = ? AND g.activo = 1
+    `, [id_usuario]);
+    return rows[0].total > 0;
+};
 
 module.exports = {
     obtenerUsuarios,

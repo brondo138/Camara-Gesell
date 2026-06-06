@@ -205,15 +205,32 @@ const cambiarVisibilidad = async (id_grabacion, visible) => {
 };
 
 const eliminarGrabacion = async (id_grabacion) => {
-    const query = `
-        DELETE FROM grabaciones 
-        WHERE id_grabacion = ?;
-    `;
+    // Obtener id_sesion de la grabación primero
+    const [[grabacion]] = await pool.query(
+        `SELECT id_sesion FROM grabaciones WHERE id_grabacion = ?`,
+        [id_grabacion]
+    );
 
-    const [result] = await pool.query(query, [id_grabacion]);
+    // Borrar observaciones por id_sesion
+    await pool.query(
+        `DELETE FROM observaciones WHERE id_sesion = ?`,
+        [grabacion.id_sesion]   // ← corregido
+    );
+
+    // Borrar etiquetas asociadas (tabla pivot)
+    await pool.query(
+        `DELETE FROM grabaciones_etiquetas WHERE id_grabacion = ?`,
+        [id_grabacion]
+    );
+
+    // Eliminar la grabación
+    const [result] = await pool.query(
+        `DELETE FROM grabaciones WHERE id_grabacion = ?`,
+        [id_grabacion]
+    );
+
     return result.affectedRows;
 };
-
 // ─── ETIQUETAS ────────────────────────────────────────────────────────────────
 
 const obtenerEtiquetas = async () => {

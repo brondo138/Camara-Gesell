@@ -28,7 +28,6 @@ export const cambiarEstadoReserva = async (id, estado) => {
   return data.data
 }
 
-// ─── ELIMINAR RESERVA ─────────────────────────────────────────────────────────
 export const deleteReserva = async (id) => {
   const { data } = await api.delete(`/reservas/${id}`)
   return data

@@ -189,7 +189,7 @@ export default function Grabaciones() {
 
   async function handleEliminar() {
     try {
-      await deleteGrabacion(modalEliminar.id_grabacion)
+      await deleteGrabacion(modalEliminar.id_grabacion, user?.id, user?.id_rol)
       setGrabaciones(prev => prev.filter(g => g.id_grabacion !== modalEliminar.id_grabacion))
       addToast("Grabación eliminada correctamente.")
       setModalEliminar(null)

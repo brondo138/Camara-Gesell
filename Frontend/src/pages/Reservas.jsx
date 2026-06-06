@@ -7,17 +7,17 @@ import {
   Camera, Eye, X, Check, Loader2, AlertTriangle, Users
 } from "lucide-react"
 import { useAuth } from "../hooks/useAuth"
-import { getReservas, cambiarEstadoReserva } from "../services/reservasService"
+import { getReservas, cambiarEstadoReserva, deleteReserva } from "../services/reservasService"
 import { getGrupos, getMiembrosGrupo } from "../services/gruposService"
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 const ESTADO_CONFIG = {
-  Pendiente: { label: "Pendiente", icon: AlertCircle,  cls: "bg-amber-50 text-amber-700 border-amber-200"       },
-  Aprobada:  { label: "Aprobada",  icon: CheckCircle2, cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  Rechazada: { label: "Rechazada", icon: XCircle,      cls: "bg-red-50 text-red-700 border-red-200"             },
-  Cancelada: { label: "Cancelada", icon: XCircle,      cls: "bg-slate-100 text-slate-500 border-slate-200"      },
-  Finalizada:{ label: "Finalizada",icon: CheckCircle2, cls: "bg-blue-50 text-blue-700 border-blue-200"          },
+  Pendiente: { label: "Pendiente", icon: AlertCircle, cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  Aprobada: { label: "Aprobada", icon: CheckCircle2, cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  Rechazada: { label: "Rechazada", icon: XCircle, cls: "bg-red-50 text-red-700 border-red-200" },
+  Cancelada: { label: "Cancelada", icon: XCircle, cls: "bg-slate-100 text-slate-500 border-slate-200" },
+  Finalizada: { label: "Finalizada", icon: CheckCircle2, cls: "bg-blue-50 text-blue-700 border-blue-200" },
 }
 
 function EstadoBadge({ estado }) {
@@ -33,7 +33,7 @@ function EstadoBadge({ estado }) {
 function formatFecha(iso) {
   if (!iso) return "—"
   const [y, m, d] = iso.slice(0, 10).split("-")
-  const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"]
+  const meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
   return `${parseInt(d)} ${meses[parseInt(m) - 1]}. ${y}`
 }
 
@@ -47,24 +47,26 @@ const containerVariants = {
   visible: { transition: { staggerChildren: 0.06 } },
 }
 const itemVariants = {
-  hidden:  { opacity: 0, y: 14 },
+  hidden: { opacity: 0, y: 14 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
 }
 
 // ─── MODAL DETALLE ────────────────────────────────────────────────────────────
 
-function DetalleModal({ reserva, isAdmin, onClose, onAprobar, onRechazar, onCancelar }) {
+function DetalleModal({ reserva, isAdmin, onClose, onAprobar, onRechazar, onCancelar, onEliminar }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
-        animate={{ opacity: 1, scale: 1,    y: 0 }}
-        exit={{    opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
         transition={{ duration: 0.2 }}
         className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md z-10 overflow-hidden"
       >
@@ -138,6 +140,14 @@ function DetalleModal({ reserva, isAdmin, onClose, onAprobar, onRechazar, onCanc
               Cerrar
             </button>
           )}
+          {isAdmin && ["Pendiente", "Rechazada", "Cancelada"].includes(reserva.estado) && (
+            <button
+              onClick={() => { onEliminar(reserva); onClose() }}
+              className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold transition-colors"
+            >
+              <XCircle size={14} /> Eliminar
+            </button>
+          )}
         </div>
       </motion.div>
     </div>
@@ -147,19 +157,19 @@ function DetalleModal({ reserva, isAdmin, onClose, onAprobar, onRechazar, onCanc
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
 
 export default function Reservas() {
-  const { user }    = useAuth()
-  const navigate    = useNavigate()
-  const isAdmin     = user?.rol === "admin"
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const isAdmin = user?.rol === "admin"
 
-  const [reservas, setReservas]       = useState([])
-  const [loading, setLoading]         = useState(true)
-  const [error, setError]             = useState("")
-  const [search, setSearch]           = useState("")
+  const [reservas, setReservas] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
+  const [search, setSearch] = useState("")
   const [filtroEstado, setFiltroEstado] = useState("todos")
   const [filtroGrupo, setFiltroGrupo] = useState("todos")
-  const [selected, setSelected]       = useState(null)
-  const [toasts, setToasts]           = useState([])
-  const [grupos, setGrupos]           = useState([])
+  const [selected, setSelected] = useState(null)
+  const [toasts, setToasts] = useState([])
+  const [grupos, setGrupos] = useState([])
 
   // ── Carga inicial ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -174,7 +184,7 @@ export default function Reservas() {
         getReservas(user?.id, user?.id_rol),
         getGrupos(user?.id, user?.id_rol)
       ])
-      
+
       // Crear un mapa de grupos por id_grupo
       const grupoMap = {}
       for (const grupo of gruposData) {
@@ -184,13 +194,13 @@ export default function Reservas() {
           miembros: miembros.map(m => m.id_usuario)
         }
       }
-      
+
       // Enriquecer las reservas con el nombre del grupo
       const reservasEnriquecidas = reservasData.map(reserva => ({
         ...reserva,
         grupo: grupoMap[reserva.id_grupo]?.nombre || "—"
       }))
-      
+
       setReservas(reservasEnriquecidas)
       setGrupos(gruposData)
     } catch (err) {
@@ -210,7 +220,7 @@ export default function Reservas() {
   // ── Acciones ─────────────────────────────────────────────────────────────
   async function handleAprobar(reserva) {
     try {
-      const actualizada = await cambiarEstadoReserva(reserva.id_reserva, "Aprobada")
+      await cambiarEstadoReserva(reserva.id_reserva, "Aprobada")
       await cargarDatos()
       addToast("Reserva aprobada correctamente.")
     } catch (err) {
@@ -220,7 +230,7 @@ export default function Reservas() {
 
   async function handleRechazar(reserva) {
     try {
-      const actualizada = await cambiarEstadoReserva(reserva.id_reserva, "Rechazada")
+      await cambiarEstadoReserva(reserva.id_reserva, "Rechazada")
       await cargarDatos()
       addToast("Reserva rechazada.", "warning")
     } catch (err) {
@@ -230,11 +240,21 @@ export default function Reservas() {
 
   async function handleCancelar(reserva) {
     try {
-      const actualizada = await cambiarEstadoReserva(reserva.id_reserva, "Cancelada")
+      await cambiarEstadoReserva(reserva.id_reserva, "Cancelada")
       await cargarDatos()
       addToast("Reserva cancelada.", "warning")
     } catch (err) {
       addToast(err?.response?.data?.message ?? "Error al cancelar la reserva.", "error")
+    }
+  }
+
+  async function handleEliminar(reserva) {
+    try {
+      await deleteReserva(reserva.id_reserva)
+      setReservas(prev => prev.filter(r => r.id_reserva !== reserva.id_reserva))
+      addToast("Reserva eliminada correctamente.")
+    } catch (err) {
+      addToast(err?.response?.data?.message ?? "Error al eliminar la reserva.", "error")
     }
   }
 
@@ -254,16 +274,16 @@ export default function Reservas() {
   }, [reservas, search, filtroEstado, filtroGrupo])
 
   const counts = useMemo(() => ({
-    todos:     reservas.length,
+    todos: reservas.length,
     Pendiente: reservas.filter(r => r.estado === "Pendiente").length,
-    Aprobada:  reservas.filter(r => r.estado === "Aprobada").length,
+    Aprobada: reservas.filter(r => r.estado === "Aprobada").length,
     Rechazada: reservas.filter(r => r.estado === "Rechazada").length,
   }), [reservas])
 
   const FILTROS = [
-    { key: "todos",     label: "Todas"      },
+    { key: "todos", label: "Todas" },
     { key: "Pendiente", label: "Pendientes" },
-    { key: "Aprobada",  label: "Aprobadas"  },
+    { key: "Aprobada", label: "Aprobadas" },
     { key: "Rechazada", label: "Rechazadas" },
   ]
 
@@ -285,7 +305,8 @@ export default function Reservas() {
             </p>
           </div>
           <motion.button
-            whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
             onClick={() => navigate("/reservas/nueva")}
             className="flex items-center gap-2 h-9 px-4 rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold transition-colors shadow-sm shrink-0"
           >
@@ -311,7 +332,7 @@ export default function Reservas() {
               </span>
             </button>
           ))}
-          
+
           {/* Filtro por grupo (solo visible para admin) */}
           {isAdmin && grupos.length > 0 && (
             <select
@@ -325,7 +346,7 @@ export default function Reservas() {
               ))}
             </select>
           )}
-          
+
           <div className="relative ml-auto">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
@@ -466,6 +487,7 @@ export default function Reservas() {
             onAprobar={handleAprobar}
             onRechazar={handleRechazar}
             onCancelar={handleCancelar}
+            onEliminar={handleEliminar}
           />
         )}
       </AnimatePresence>
@@ -487,16 +509,16 @@ function Toast({ message, type }) {
   const styles = {
     success: "bg-emerald-600 text-white",
     warning: "bg-amber-500 text-white",
-    error:   "bg-red-500 text-white",
+    error: "bg-red-500 text-white",
   }
   return (
     <motion.div
       initial={{ opacity: 0, y: 16, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0,  scale: 1    }}
-      exit={{    opacity: 0, y: 8,  scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 8, scale: 0.95 }}
       className={`pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-sm font-medium ${styles[type] ?? styles.success}`}
     >
-      {type === "error"   && <AlertTriangle className="w-4 h-4 flex-shrink-0" />}
+      {type === "error" && <AlertTriangle className="w-4 h-4 flex-shrink-0" />}
       {type === "success" && <Check className="w-4 h-4 flex-shrink-0" />}
       {type === "warning" && <XCircle className="w-4 h-4 flex-shrink-0" />}
       {message}

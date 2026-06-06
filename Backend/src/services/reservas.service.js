@@ -158,7 +158,25 @@ const cambiarEstadoReserva = async (id_reserva, estado) => {
 };
 
 const eliminarReserva = async (id_reserva) => {
-    await obtenerReservaPorId(id_reserva);
+    const reserva = await obtenerReservaPorId(id_reserva);
+
+    // Solo se pueden eliminar reservas Pendientes, Rechazadas o Canceladas
+    const ESTADOS_ELIMINABLES = ['Pendiente', 'Rechazada', 'Cancelada'];
+
+    if (!ESTADOS_ELIMINABLES.includes(reserva.estado)) {
+        const error = new Error(`No se puede eliminar una reserva en estado "${reserva.estado}". Solo se pueden eliminar reservas Pendientes, Rechazadas o Canceladas.`);
+        error.statusCode = 409;
+        throw error;
+    }
+
+    // Verificar que no tenga sesión asociada
+    const sesion = await sesionesRepository.obtenerSesionPorReserva(id_reserva);
+
+    if (sesion) {
+        const error = new Error('No se puede eliminar la reserva porque tiene una sesión asociada.');
+        error.statusCode = 409;
+        throw error;
+    }
 
     await reservasRepository.eliminarReserva(id_reserva);
 
@@ -167,7 +185,6 @@ const eliminarReserva = async (id_reserva) => {
         mensaje: 'Reserva eliminada correctamente'
     };
 };
-
 module.exports = {
     obtenerReservas,
     obtenerReservaPorId,

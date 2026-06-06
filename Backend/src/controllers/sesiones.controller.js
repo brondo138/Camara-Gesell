@@ -84,10 +84,28 @@ const cambiarEstadoSesion = async (req, res) => {
     }
 };
 
+const eliminarSesion = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const resultado = await sesionesService.eliminarSesion(id); // ✅ corregido
+        res.json({
+            success: true,
+            message: 'Sesión eliminada correctamente',
+            data: resultado
+        });
+    } catch (error) {
+        res.status(error.statusCode || 500).json({
+            success: false,
+            message: error.message || 'Error interno'
+        });
+    }
+};
+
 module.exports = {
     obtenerSesiones,
     obtenerSesionPorId,
     crearSesion,
     actualizarSesion,
-    cambiarEstadoSesion
+    cambiarEstadoSesion,
+    eliminarSesion       // ✅ exportado
 };

@@ -33,3 +33,7 @@ export const cambiarEstadoSesion = async (id, estado) => {
   const { data } = await api.patch(`/sesiones/${id}/estado`, { estado })
   return data.data
 }
+export const deleteSesion = async (id) => {
+  const { data } = await api.delete(`/sesiones/${id}`)
+  return data.data
+}

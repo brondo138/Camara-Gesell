@@ -96,15 +96,52 @@ const GruposRepository = {
         return result.affectedRows;
     },
 
-    async eliminarGrupo(id_grupo) {
-        const [result] = await connection.query(`
-            DELETE FROM grupos
-            WHERE id_grupo = ?
-        `, [id_grupo]);
+   async eliminarGrupo(id_grupo) {
+    // 1. Verificar si tiene miembros que NO sean el docente responsable
+    const [miembros] = await connection.query(
+        `SELECT gu.id_usuario 
+         FROM grupo_usuarios gu
+         INNER JOIN grupos g ON g.id_grupo = gu.id_grupo
+         WHERE gu.id_grupo = ?
+           AND gu.id_usuario != g.id_docente_responsable
+         LIMIT 1`,
+        [id_grupo]
+    );
 
-        return result.affectedRows;
-    },
+    if (miembros.length > 0) {
+        const error = new Error('No se puede eliminar el grupo porque tiene usuarios asignados.');
+        error.statusCode = 409;
+        throw error;
+    }
 
+    // 2. Verificar si tiene reservas/sesiones asociadas
+    const [reservas] = await connection.query(
+        `SELECT id_reserva FROM reservas WHERE id_grupo = ? LIMIT 1`,
+        [id_grupo]
+    );
+
+    if (reservas.length > 0) {
+        const error = new Error('No se puede eliminar el grupo porque tiene sesiones asociadas.');
+        error.statusCode = 409;
+        throw error;
+    }
+
+    // 3. Borrar al docente de grupo_usuarios antes de eliminar el grupo
+    await connection.query(
+        `DELETE FROM grupo_usuarios WHERE id_grupo = ?`,
+        [id_grupo]
+    );
+
+    // 4. Eliminar el grupo
+    const [result] = await connection.query(
+        `DELETE FROM grupos WHERE id_grupo = ?`,
+        [id_grupo]
+    );
+
+    return result.affectedRows;
+},
+
+   
     async asignarUsuarioGrupo(id_grupo, id_usuario, rol_en_grupo) {
         const [result] = await connection.query(`
             INSERT INTO grupo_usuarios
