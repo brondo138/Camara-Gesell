@@ -447,11 +447,22 @@ function VideoModal({ grabacion, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <motion.div initial={{ scale: 0.93, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.93, opacity: 0 }} transition={{ type: "spring", stiffness: 320, damping: 28 }}
-        onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden">
+      <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm" 
+        onClick={onClose}
+      />
+      <motion.div 
+        initial={{ scale: 0.93, opacity: 0 }} 
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.93, opacity: 0 }} 
+        transition={{ type: "spring", stiffness: 320, damping: 28 }}
+        onClick={e => e.stopPropagation()}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden"
+        style={{ zIndex: 1 }}
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2 min-w-0">
             <span className={`flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full ${meta.bg} ${meta.color} ${meta.border} border`}>
@@ -459,18 +470,36 @@ function VideoModal({ grabacion, onClose }) {
             </span>
             <h2 className="text-sm font-semibold text-slate-800 truncate">{grabacion.titulo}</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X size={18} /></button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
+            <X size={18} />
+          </button>
         </div>
         <div className="bg-black aspect-video w-full">
           {embedUrl && (tipo === "youtube" || tipo === "drive" || tipo === "vimeo") ? (
-            <iframe src={embedUrl} title={grabacion.titulo} className="w-full h-full" allowFullScreen />
+            <iframe 
+              src={embedUrl} 
+              title={grabacion.titulo} 
+              className="w-full h-full" 
+              allowFullScreen 
+            />
           ) : tipo === "direct" && embedUrl ? (
-            <video src={embedUrl} controls className="w-full h-full" />
+            <video 
+              src={embedUrl} 
+              controls 
+              className="w-full h-full" 
+            />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center text-white/50 gap-3">
               <Film className="w-10 h-10" />
               <p className="text-sm">No se puede previsualizar este enlace</p>
-              <a href={grabacion.url_video} target="_blank" rel="noopener noreferrer" className="text-xs underline">Abrir en nueva pestaña</a>
+              <a 
+                href={grabacion.url_video} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-xs underline"
+              >
+                Abrir en nueva pestaña
+              </a>
             </div>
           )}
         </div>
@@ -542,7 +571,7 @@ export default function DetalleSesion() {
   async function cargarGrabaciones() {
     setGrabacionesLoading(true)
     try {
-      const data = await getGrabacionesPorSesion(id)
+      const data = await getGrabacionesPorSesion(id, user?.id, user?.id_rol)
       setGrabaciones(data || [])
     } catch (err) {
       console.error("Error cargando grabaciones:", err)

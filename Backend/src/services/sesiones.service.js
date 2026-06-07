@@ -1,4 +1,5 @@
 const sesionesRepository = require('../repositories/sesiones.repository');
+const reservasRepository = require('../repositories/reservas.repository');
 
 const ESTADOS_VALIDOS = ['Programada', 'Realizada', 'Cancelada'];
 
@@ -149,21 +150,29 @@ const cambiarEstadoSesion = async (id_sesion, estado) => {
 
     return await sesionesRepository.obtenerSesionPorId(id_sesion);
 };
+
 const eliminarSesion = async (id_sesion) => {
-    const sesion = await obtenerSesionPorId(id_sesion) // valida 404
+    const sesion = await obtenerSesionPorId(id_sesion);
 
     if (sesion.estado === 'Programada') {
         const error = new Error(
             'No se puede eliminar una sesión programada. ' +
             'Primero márcala como Realizada o Cancelada.'
-        )
-        error.statusCode = 400
-        throw error
+        );
+        error.statusCode = 400;
+        throw error;
     }
 
-    await sesionesRepository.eliminarSesion(id_sesion)
-    return { id_sesion, mensaje: 'Sesión eliminada correctamente' }
-}
+    const id_reserva = sesion.id_reserva;
+
+    // Eliminar sesión primero (observaciones y grabaciones caen en cascada)
+    await sesionesRepository.eliminarSesion(id_sesion);
+
+    // Eliminar la reserva asociada automáticamente
+    await reservasRepository.eliminarReserva(id_reserva);
+
+    return { id_sesion, mensaje: 'Sesión y reserva asociada eliminadas correctamente' };
+};
 
 module.exports = {
     obtenerSesiones,
@@ -171,5 +180,5 @@ module.exports = {
     crearSesion,
     actualizarSesion,
     cambiarEstadoSesion,
-    eliminarSesion       // ← agregar
-}
+    eliminarSesion
+};

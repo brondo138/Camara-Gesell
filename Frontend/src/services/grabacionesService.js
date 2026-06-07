@@ -15,8 +15,10 @@ export const getGrabacionById = async (id) => {
 }
 
 // ─── OBTENER GRABACIONES POR SESIÓN ──────────────────────────────────────────
-export const getGrabacionesPorSesion = async (id_sesion) => {
-  const { data } = await api.get(`/grabaciones/sesion/${id_sesion}`)
+export const getGrabacionesPorSesion = async (id_sesion, id_usuario, id_rol) => {
+  const { data } = await api.get(`/grabaciones/sesion/${id_sesion}`, {
+    params: { id_usuario, id_rol }
+  })
   return data.data
 }
 
