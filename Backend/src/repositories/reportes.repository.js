@@ -2,15 +2,25 @@ const pool = require('../database/connection');
 
 // ─── FILTRO BASE reutilizable ─────────────────────────────────────────────────
 // Construye el WHERE dinámico según rol y periodo
-function buildWhere(id_usuario, id_rol, mes, anio, alias = 'r') {
+function buildWhere(id_usuario, id_rol, mes, anio) {
     const conditions = []
     const params     = []
 
-    // Docente y estudiante solo ven sus propios datos
-    if (parseInt(id_rol) !== 1) {
-        conditions.push(`${alias}.id_usuario_solicitante = ?`)
+    if (parseInt(id_rol) === 2) {
+        // Docente — ver actividad de su grupo
+        conditions.push(`r.id_usuario_solicitante IN (
+            SELECT gu.id_usuario
+            FROM grupo_usuarios gu
+            INNER JOIN grupos g ON gu.id_grupo = g.id_grupo
+            WHERE g.id_docente_responsable = ?
+        )`)
+        params.push(id_usuario)
+    } else if (parseInt(id_rol) === 3) {
+        // Estudiante — solo su propia actividad
+        conditions.push(`r.id_usuario_solicitante = ?`)
         params.push(id_usuario)
     }
+    // Admin — sin filtro de usuario
 
     if (mes && mes !== 'todos') {
         conditions.push(`MONTH(r.fecha) = ?`)

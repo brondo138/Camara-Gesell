@@ -5,10 +5,10 @@ import {
   ArrowLeft, CalendarClock, Camera, CheckCircle2, Clock,
   FileText, MessageSquareText, UserRound, Video, XCircle,
   Loader2, AlertTriangle, Plus, Edit3, Trash2, X, Check,
-  Send, Play, Eye, EyeOff, Tag, ChevronDown, Film, Users
+  Send, Play, Eye, EyeOff, Tag, ChevronDown, Film, Users, Pencil
 } from "lucide-react"
 import { useAuth } from "../hooks/useAuth"
-import { getSesionById } from "../services/sesionesService"
+import { getSesionById, updateSesion } from "../services/sesionesService"
 import { 
   getObservacionesBySesion, 
   createObservacion, 
@@ -518,6 +518,11 @@ export default function DetalleSesion() {
   const [sesion, setSesion] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+
+  // Estados para edición de descripción
+  const [editandoDesc, setEditandoDesc] = useState(false)
+  const [descTemp, setDescTemp] = useState("")
+  const [guardandoDesc, setGuardandoDesc] = useState(false)
   
   // Estados para observaciones
   const [observaciones, setObservaciones] = useState([])
@@ -596,6 +601,28 @@ export default function DetalleSesion() {
     setToasts(prev => [...prev, { id: idToast, message, type }])
     setTimeout(() => setToasts(prev => prev.filter(t => t.id !== idToast)), 3500)
   }
+
+  // ── Edición de descripción ─────────────────────────────────────────────────
+  async function guardarDescripcion() {
+  setGuardandoDesc(true)
+  try {
+    await updateSesion(sesion.id_sesion, {
+      titulo:            sesion.titulo,
+      descripcion:       descTemp.trim() || null,
+      tipo_sesion:       sesion.tipo_sesion,
+      fecha_realizacion: sesion.fecha_realizacion
+    })
+    // Primero cerrar el editor, luego actualizar el estado
+    setEditandoDesc(false)
+    setTimeout(() => {
+      setSesion(prev => ({ ...prev, descripcion: descTemp.trim() || null }))
+    }, 50)
+  } catch (err) {
+    console.error("Error al guardar descripción:", err)
+  } finally {
+    setGuardandoDesc(false)
+  }
+}
 
   // ── CRUD Observaciones ─────────────────────────────────────────────────────
   async function handleCreateObservacion(texto) {
@@ -758,12 +785,52 @@ export default function DetalleSesion() {
         {/* Descripción y Solicitante */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <section className="lg:col-span-2 bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
-              <FileText size={15} className="text-blue-600" />
-              <h2 className="text-sm font-semibold text-slate-800">Descripción</h2>
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText size={15} className="text-blue-600" />
+                <h2 className="text-sm font-semibold text-slate-800">Descripción</h2>
+              </div>
+              {/* Botón editar — solo admin y docente */}
+              {(user?.rol === "admin" || user?.rol === "docente") && !editandoDesc && (
+                <button
+                  onClick={() => { setDescTemp(sesion.descripcion ?? ""); setEditandoDesc(true) }}
+                  className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-[#1e3a5f] border border-slate-200 hover:border-[#1e3a5f]/30 rounded-lg px-3 py-1.5 transition-colors"
+                >
+                  <Pencil size={13} /> Editar
+                </button>
+              )}
             </div>
             <div className="p-5">
-              {sesion.descripcion ? (
+              {editandoDesc ? (
+                <div className="space-y-3">
+                  <textarea
+                    rows={4}
+                    value={descTemp}
+                    onChange={e => setDescTemp(e.target.value)}
+                    placeholder="Escribe una descripción para esta sesión…"
+                    className="w-full px-3.5 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/20 focus:border-[#1e3a5f] transition resize-none"
+                  />
+                  <div className="flex items-center gap-2 justify-end">
+                    <button
+                      onClick={() => setEditandoDesc(false)}
+                      disabled={guardandoDesc}
+                      className="px-4 py-2 text-xs text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={guardarDescripcion}
+                      disabled={guardandoDesc}
+                      className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium bg-[#1e3a5f] hover:bg-[#16304f] text-white rounded-xl transition-colors disabled:opacity-60"
+                    >
+                      {guardandoDesc
+                        ? <><Loader2 size={12} className="animate-spin" />Guardando…</>
+                        : <><Check size={12} />Guardar</>
+                      }
+                    </button>
+                  </div>
+                </div>
+              ) : sesion.descripcion ? (
                 <p className="text-sm text-slate-600 leading-relaxed">{sesion.descripcion}</p>
               ) : (
                 <p className="text-sm text-slate-400 italic">Sin descripción registrada.</p>

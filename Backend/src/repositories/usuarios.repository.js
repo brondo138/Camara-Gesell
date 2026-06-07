@@ -147,5 +147,6 @@ module.exports = {
     crearUsuario,
     actualizarUsuario,
     actualizarContrasena,
-    eliminarUsuario
+    eliminarUsuario,
+    perteneceAGrupoActivo
 };
