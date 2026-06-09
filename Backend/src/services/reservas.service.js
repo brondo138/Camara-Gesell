@@ -1,6 +1,6 @@
 const reservasRepository = require('../repositories/reservas.repository');
 const sesionesRepository = require('../repositories/sesiones.repository');
-
+const { notificarReservaAprobada, notificarReservaRechazada } = require('./email.service');
 const ESTADOS_VALIDOS = ['Pendiente', 'Aprobada', 'Rechazada', 'Cancelada', 'Finalizada'];
 
 const obtenerReservas = async (id_usuario, id_rol) => {
@@ -142,6 +142,30 @@ const cambiarEstadoReserva = async (id_reserva, estado) => {
 
     if (estado === 'Aprobada') {
         const sesionExistente = await sesionesRepository.obtenerSesionPorReserva(id_reserva);
+   const datosEmail = {
+    correo:      reserva.correo_solicitante,
+    nombre:      `${reserva.nombre_solicitante} ${reserva.apellido_solicitante}`,
+    camara:      reserva.camara,
+    fecha:       reserva.fecha,
+    hora_inicio: reserva.hora_inicio?.slice(0, 5) ?? '',
+    hora_fin:    reserva.hora_fin?.slice(0, 5)    ?? ''
+}
+
+console.log('=== EMAIL DEBUG ===')
+console.log('correo_solicitante:', reserva.correo_solicitante)
+console.log('datosEmail:', datosEmail)
+console.log('EMAIL_USER:', process.env.EMAIL_USER)
+console.log('EMAIL_PASS existe:', !!process.env.EMAIL_PASS)
+console.log('==================')
+if (estado === 'Aprobada') {
+    notificarReservaAprobada(datosEmail).catch(err =>
+        console.error('Error al enviar email de aprobación:', err.message)
+    )
+} else if (estado === 'Rechazada') {
+    notificarReservaRechazada(datosEmail).catch(err =>
+        console.error('Error al enviar email de rechazo:', err.message)
+    )
+}
 
         if (!sesionExistente) {
             await sesionesRepository.crearSesion({

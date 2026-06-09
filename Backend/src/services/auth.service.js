@@ -34,8 +34,8 @@ const login = async (correo, contrasena) => {
 
     const payload = {
         id_usuario: usuario.id_usuario,
-        correo: usuario.correo,
-        id_rol: usuario.id_rol,
+        correo:     usuario.correo,
+        id_rol:     usuario.id_rol,
         nombre_rol: usuario.nombre_rol
     };
 
@@ -46,16 +46,14 @@ const login = async (correo, contrasena) => {
     return {
         usuario: {
             id_usuario: usuario.id_usuario,
-            nombre: usuario.nombre,
-            apellido: usuario.apellido,
-            correo: usuario.correo,
-            id_rol: usuario.id_rol,
+            nombre:     usuario.nombre,
+            apellido:   usuario.apellido,
+            correo:     usuario.correo,
+            id_rol:     usuario.id_rol,
             nombre_rol: usuario.nombre_rol
         },
         token
     };
 };
 
-module.exports = {
-    login
-};
+module.exports = { login };

@@ -17,6 +17,7 @@ const obtenerReservas = async () => {
             r.id_usuario_solicitante,
             u.nombre AS nombre_solicitante,
             u.apellido AS apellido_solicitante,
+            u.correo AS correo_solicitante, 
 
             ro.id_rol,
             ro.nombre_rol AS rol_solicitante,
@@ -89,6 +90,7 @@ const obtenerReservaPorId = async (id_reserva) => {
             r.id_usuario_solicitante,
             u.nombre AS nombre_solicitante,
             u.apellido AS apellido_solicitante,
+            u.correo AS correo_solicitante,
 
             ro.id_rol,
             ro.nombre_rol AS rol_solicitante,

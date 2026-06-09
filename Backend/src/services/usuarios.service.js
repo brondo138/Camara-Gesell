@@ -136,4 +136,5 @@ module.exports = {
     actualizarUsuario,
     actualizarContrasena,
     eliminarUsuario
+    
 };
