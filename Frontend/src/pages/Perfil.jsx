@@ -1,9 +1,10 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { getMiembrosGrupo, getGrupos } from "../services/GruposService"
 import {
   User, Mail, Lock, Edit2, Save, X,
   CheckCircle2, AlertCircle, Eye, EyeOff,
-  ShieldCheck, Camera, KeyRound
+  ShieldCheck, Camera, KeyRound, Users
 } from "lucide-react"
 import { useAuth } from "../hooks/useAuth"
 
@@ -412,7 +413,72 @@ function SeccionContrasena({ user, onToast }) {
     </motion.div>
   )
 }
+function SeccionGrupo({ user }) {
+  const [grupo, setGrupo] = useState(null)
+  const [loading, setLoading] = useState(true)
 
+  useEffect(() => {
+    async function cargar() {
+      try {
+        const grupos = await getGrupos(user?.id, user?.id_rol)
+        // El usuario pertenece al primer grupo activo que aparezca
+        const miGrupo = grupos.find(g => Boolean(g.activo))
+        setGrupo(miGrupo ?? null)
+      } catch {
+        setGrupo(null)
+      } finally {
+        setLoading(false)
+      }
+    }
+    cargar()
+  }, [user])
+
+  return (
+    <motion.div variants={itemVariants} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="flex items-center gap-2 px-5 py-4 border-b border-slate-100">
+        <Users size={15} className="text-blue-600" />
+        <h2 className="text-sm font-semibold text-slate-800">Mi grupo</h2>
+      </div>
+      <div className="px-5 py-5">
+        {loading ? (
+          <div className="flex items-center gap-2 text-slate-400">
+            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+            </svg>
+            <span className="text-sm">Cargando grupo…</span>
+          </div>
+        ) : !grupo ? (
+          <p className="text-sm text-slate-400 italic">No estás asignado a ningún grupo activo.</p>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <p className="text-[11px] text-slate-400 mb-1">Nombre del grupo</p>
+              <p className="text-sm font-semibold text-slate-800">{grupo.nombre}</p>
+            </div>
+            {grupo.docente_responsable && (
+              <div className="border-t border-slate-100 pt-3">
+                <p className="text-[11px] text-slate-400 mb-1">Docente responsable</p>
+                <p className="text-sm font-semibold text-slate-800">{grupo.docente_responsable}</p>
+              </div>
+            )}
+            {grupo.descripcion && (
+              <div className="border-t border-slate-100 pt-3">
+                <p className="text-[11px] text-slate-400 mb-1">Descripción</p>
+                <p className="text-sm text-slate-600 leading-relaxed">{grupo.descripcion}</p>
+              </div>
+            )}
+            <div className="border-t border-slate-100 pt-3">
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <CheckCircle2 size={10} /> Activo
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  )
+}
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function Perfil() {
@@ -479,6 +545,10 @@ export default function Perfil() {
 
         {/* Sección contraseña */}
         <SeccionContrasena user={user} onToast={showToast} />
+        
+        {(user?.rol === "docente" || user?.rol === "estudiante") && (
+          <SeccionGrupo user={user} />
+        )}
 
         {/* Nota informativa */}
         <motion.div

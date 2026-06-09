@@ -2,7 +2,7 @@ const pool = require('../database/connection');
 
 const obtenerCamaras = async () => {
     const query = `
-        SELECT
+        SELECT 
             id_camara,
             nombre,
             ubicacion,
@@ -18,7 +18,7 @@ const obtenerCamaras = async () => {
 
 const obtenerCamaraPorId = async (id_camara) => {
     const query = `
-        SELECT
+        SELECT 
             id_camara,
             nombre,
             ubicacion,
@@ -89,17 +89,6 @@ const cambiarEstadoCamara = async (id_camara, activa) => {
     return result.affectedRows;
 };
 
-const contarReservasPorCamara = async (id_camara) => {
-    const query = `
-        SELECT COUNT(*) AS total
-        FROM reservas
-        WHERE id_camara = ?;
-    `;
-
-    const [rows] = await pool.query(query, [id_camara]);
-    return rows[0].total;
-};
-
 const eliminarCamara = async (id_camara) => {
     const query = `
         DELETE FROM camaras_gesell
@@ -116,6 +105,5 @@ module.exports = {
     crearCamara,
     actualizarCamara,
     cambiarEstadoCamara,
-    contarReservasPorCamara,
     eliminarCamara
 };

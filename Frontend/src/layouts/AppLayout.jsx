@@ -12,7 +12,8 @@ import { cn } from "../utils/cn"
 const NAV_ITEMS = [
   { to: "/dashboard",   label: "Dashboard",    icon: LayoutDashboard, roles: ["admin","docente","estudiante"] },
   { to: "/usuarios",    label: "Usuarios",     icon: Users,           roles: ["admin"] },
-  { to: "/camaras",     label: "Cámaras",      icon: Camera,          roles: ["admin","docente","estudiante"] },
+  { to: "/camaras",     label: "Cámaras",      icon: Camera,          roles: ["admin"] },
+  { to: "/grupos",      label: "Grupos",       icon: Users,           roles: ["admin","docente"] },
   { to: "/reservas",    label: "Reservas",     icon: CalendarCheck,   roles: ["admin","docente","estudiante"] },
   { to: "/sesiones",    label: "Sesiones",     icon: Video,           roles: ["admin","docente","estudiante"] },
   { to: "/grabaciones", label: "Grabaciones",  icon: BookOpen,        roles: ["admin","docente"] },
@@ -167,8 +168,9 @@ export default function AppLayout() {
         {/* Collapse toggle */}
         <button
           onClick={() => setCollapsed(c => !c)}
-          className="absolute top-4 -right-3 w-6 h-6 bg-navy-700 hover:bg-navy-600
-                     rounded-full flex items-center justify-center z-10 transition-colors shadow"
+          className="absolute top-4 right-3 w-7 h-7 bg-navy-700 hover:bg-navy-600
+                     rounded-lg flex items-center justify-center z-10 transition-colors shadow"
+          title={collapsed ? "Expandir menú" : "Contraer menú"}
         >
           <motion.div animate={{ rotate: collapsed ? 0 : 180 }} transition={{ duration: 0.25 }}>
             <ChevronRight size={12} className="text-white" />

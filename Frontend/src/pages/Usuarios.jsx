@@ -18,6 +18,7 @@ import {
   toggleUsuarioActivo,
   updateUsuario,
 } from "../services/usuariosService"
+import { getGrupos, getMiembrosGrupo } from "../services/GruposService"
 
 const emptyForm = {
   nombre: "",
@@ -187,41 +188,60 @@ export default function Usuarios() {
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  
+  // Estados para integración con grupos
+  const [userGruposMap, setUserGruposMap] = useState({}) // { id_usuario: nombre_grupo }
 
-  const refreshUsuarios = useCallback(async () => {
+  const loadUsersWithGroups = useCallback(async () => {
     setIsLoading(true)
+    setError("")
 
     try {
-      setUsuarios(await getUsuarios())
-      setError("")
+      // Cargar usuarios
+      const usersData = await getUsuarios()
+      
+      // Cargar grupos
+      const gruposData = await getGrupos()
+      
+      // Mapear usuarios con sus grupos
+      const grupoMap = {} // { id_usuario: nombre_grupo }
+      
+      for (const grupo of gruposData) {
+        try {
+          const miembros = await getMiembrosGrupo(grupo.id_grupo)
+          miembros.forEach(miembro => {
+            grupoMap[miembro.id_usuario] = grupo.nombre
+          })
+        } catch (err) {
+          console.error(`Error al cargar miembros del grupo ${grupo.id_grupo}:`, err)
+        }
+      }
+      
+      setUsuarios(usersData)
+      setUserGruposMap(grupoMap)
     } catch (err) {
       setError(err.message)
+      setUsuarios([])
+      setUserGruposMap({})
     } finally {
       setIsLoading(false)
     }
   }, [])
 
-  useEffect(() => {
-    let ignore = false
-
-    getUsuarios()
-      .then((data) => {
-        if (!ignore) {
-          setUsuarios(data)
-          setError("")
-        }
-      })
-      .catch((err) => {
-        if (!ignore) setError(err.message)
-      })
-      .finally(() => {
-        if (!ignore) setIsLoading(false)
-      })
-
-    return () => {
-      ignore = true
+  // Refresh de usuarios (mantiene los grupos)
+  const refreshUsuarios = useCallback(async () => {
+    try {
+      const usersData = await getUsuarios()
+      setUsuarios(usersData)
+      setError("")
+    } catch (err) {
+      setError(err.message)
     }
   }, [])
+
+  useEffect(() => {
+    loadUsersWithGroups()
+  }, [loadUsersWithGroups])
 
   const filteredUsuarios = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -229,11 +249,11 @@ export default function Usuarios() {
     if (!query) return usuarios
 
     return usuarios.filter((usuario) =>
-      `${usuario.nombre} ${usuario.apellido} ${usuario.correo} ${getRoleLabel(usuario.id_rol)}`
+      `${usuario.nombre} ${usuario.apellido} ${usuario.correo} ${getRoleLabel(usuario.id_rol)} ${userGruposMap[usuario.id_usuario] || ""}`
         .toLowerCase()
         .includes(query)
     )
-  }, [search, usuarios])
+  }, [search, usuarios, userGruposMap])
 
   const totalActivos = usuarios.filter((usuario) => usuario.activo).length
 
@@ -297,7 +317,7 @@ export default function Usuarios() {
 
     try {
       await deleteUsuario(id)
-      await refreshUsuarios()
+      await loadUsersWithGroups() // Recargar todo para actualizar el mapa de grupos
 
       if (editingId === id) resetForm()
     } catch (err) {
@@ -352,7 +372,7 @@ export default function Usuarios() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full h-10 rounded-lg border border-slate-200 pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
-              placeholder="Buscar por nombre, correo o rol"
+              placeholder="Buscar por nombre, correo, rol o grupo"
             />
           </div>
         </div>
@@ -364,6 +384,7 @@ export default function Usuarios() {
                 <th className="text-left font-semibold px-5 py-3">Usuario</th>
                 <th className="text-left font-semibold px-5 py-3">Correo</th>
                 <th className="text-left font-semibold px-5 py-3">Rol</th>
+                <th className="text-left font-semibold px-5 py-3">Grupo</th>
                 <th className="text-left font-semibold px-5 py-3">Estado</th>
                 <th className="text-left font-semibold px-5 py-3">Creacion</th>
                 <th className="text-right font-semibold px-5 py-3">Acciones</th>
@@ -391,6 +412,15 @@ export default function Usuarios() {
                     <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
                       {getRoleLabel(usuario.id_rol)}
                     </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    {userGruposMap[usuario.id_usuario] ? (
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-purple-50 text-purple-700 text-xs font-semibold">
+                        {userGruposMap[usuario.id_usuario]}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 text-xs">—</span>
+                    )}
                   </td>
                   <td className="px-5 py-4">
                     <span

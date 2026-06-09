@@ -10,11 +10,11 @@ const {
 
 const router = express.Router();
 
-router.get('/', obtenerCamaras);
-router.get('/:id', obtenerCamaraPorId);
-router.post('/', crearCamara);
-router.put('/:id', actualizarCamara);
+router.get('/',         obtenerCamaras);
+router.get('/:id',      obtenerCamaraPorId);
+router.post('/',        crearCamara);
+router.put('/:id',      actualizarCamara);
 router.patch('/:id/estado', cambiarEstadoCamara);
-router.delete('/:id', eliminarCamara);
+router.delete('/:id',   eliminarCamara);
 
 module.exports = router;

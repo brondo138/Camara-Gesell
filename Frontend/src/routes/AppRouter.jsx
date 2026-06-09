@@ -3,17 +3,19 @@ import AppLayout from "../layouts/AppLayout"
 import AuthLayout from "../layouts/AuthLayout"
 import PrivateRoute from "./PrivateRoute"
 
-import Login        from "../pages/Login"
-import Dashboard    from "../pages/Dashboard"
-import Usuarios     from "../pages/Usuarios"
-import Camaras      from "../pages/Camaras"
-import Reservas     from "../pages/Reservas"
-import Sesiones     from "../pages/Sesiones"
+import Login         from "../pages/Login"
+import Dashboard     from "../pages/Dashboard"
+import Usuarios      from "../pages/Usuarios"
+import Camaras       from "../pages/Camaras"
+import Reservas      from "../pages/Reservas"
+import NuevaReserva  from "../pages/NuevaReserva"
+import Sesiones      from "../pages/Sesiones"
 import DetalleSesion from "../pages/DetalleSesion"
-import Grabaciones  from "../pages/Grabaciones"
-import Reportes     from "../pages/Reportes"
-import Perfil       from "../pages/Perfil"
-import NotFound     from "../pages/NotFound"
+import Grabaciones   from "../pages/Grabaciones"
+import Reportes      from "../pages/Reportes"
+import Perfil        from "../pages/Perfil"
+import NotFound      from "../pages/NotFound"
+import Grupos from "../pages/Grupos"
 
 export default function AppRouter() {
   return (
@@ -29,20 +31,23 @@ export default function AppRouter() {
         <Route element={<PrivateRoute />}>
           <Route element={<AppLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard"    element={<Dashboard />} />
-            <Route path="/camaras"      element={<Camaras />} />
-            <Route path="/reservas"     element={<Reservas />} />
-            <Route path="/sesiones"     element={<Sesiones />} />
-            <Route path="/sesiones/:id" element={<DetalleSesion />} />
-            <Route path="/perfil"       element={<Perfil />} />
+            <Route path="/dashboard"      element={<Dashboard />} />
+            {/* <Route path="/camaras"        element={<Camaras />} />  ELIMINAR ESTA LÍNEA */}
+            <Route path="/reservas"       element={<Reservas />} />
+            <Route path="/reservas/nueva" element={<NuevaReserva />} />
+            <Route path="/sesiones"       element={<Sesiones />} />
+            <Route path="/sesiones/:id"   element={<DetalleSesion />} />
+            <Route path="/perfil"         element={<Perfil />} />
 
             {/* Solo admin */}
             <Route element={<PrivateRoute roles={["admin"]} />}>
               <Route path="/usuarios" element={<Usuarios />} />
+              <Route path="/camaras"  element={<Camaras />} />  
             </Route>
 
             {/* Admin + docente */}
             <Route element={<PrivateRoute roles={["admin","docente"]} />}>
+              <Route path="/grupos"      element={<Grupos />} />
               <Route path="/grabaciones" element={<Grabaciones />} />
               <Route path="/reportes"    element={<Reportes />} />
             </Route>

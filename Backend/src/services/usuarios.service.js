@@ -113,20 +113,20 @@ const actualizarContrasena = async (id_usuario, nuevaContrasena) => {
 };
 
 const eliminarUsuario = async (id_usuario) => {
-    const usuario = await usuariosRepository.obtenerUsuarioPorId(id_usuario);
+    const usuario = await obtenerUsuarioPorId(id_usuario); // ya valida 404
 
-    if (!usuario) {
-        const error = new Error('Usuario no encontrado');
-        error.statusCode = 404;
+    const enGrupo = await usuariosRepository.perteneceAGrupoActivo(id_usuario);
+    if (enGrupo) {
+        const error = new Error(
+            'No se puede eliminar el usuario porque pertenece a un grupo activo. ' +
+            'Retíralo del grupo primero.'
+        );
+        error.statusCode = 409;
         throw error;
     }
 
     await usuariosRepository.eliminarUsuario(id_usuario);
-
-    return {
-        id_usuario: Number(id_usuario),
-        mensaje: 'Usuario eliminado correctamente'
-    };
+    return { id_usuario, mensaje: 'Usuario eliminado correctamente' };
 };
 
 module.exports = {

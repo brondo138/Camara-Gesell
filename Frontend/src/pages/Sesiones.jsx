@@ -1,150 +1,127 @@
-import { useMemo, useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { useState, useEffect, useMemo } from "react"
+import { AnimatePresence, motion } from "framer-motion"
 import { useNavigate } from "react-router-dom"
 import {
   AlertCircle, CalendarClock, Camera, CheckCircle2, ChevronRight,
-  Clock, Eye, Filter, Search, UserRound, Users, Video, XCircle, X
+  Clock, Eye, Filter, Search, UserRound, Users, Video, XCircle,
+  Loader2, AlertTriangle, Trash2, CheckCheck, X
 } from "lucide-react"
 import { useAuth } from "../hooks/useAuth"
+import { getSesiones, cambiarEstadoSesion, deleteSesion } from "../services/SesionesService"
 
-const MOCK_SESIONES = [
-  {
-    id_sesion: 1,
-    id_reserva: 2,
-    titulo: "Evaluacion psicologica inicial",
-    paciente: "Paciente reservado",
-    estudiante: "Carlos Rivas",
-    id_estudiante: 11,
-    docente: "Dra. Morales",
-    id_docente: 21,
-    camara: "Sala B",
-    fecha: "2026-05-21",
-    hora_inicio: "10:00",
-    hora_fin: "12:00",
-    estado: "finalizada",
-    motivo: "Practica supervisada de entrevista clinica.",
-    observaciones: 3,
-    grabaciones: 1,
-  },
-  {
-    id_sesion: 2,
-    id_reserva: 3,
-    titulo: "Terapia familiar - caso #12",
-    paciente: "Familia asignada",
-    estudiante: "Ana Martinez",
-    id_estudiante: 12,
-    docente: "Dr. Perez",
-    id_docente: 22,
-    camara: "Sala A",
-    fecha: "2026-05-22",
-    hora_inicio: "14:00",
-    hora_fin: "16:00",
-    estado: "en_curso",
-    motivo: "Seguimiento de dinamica familiar con observacion docente.",
-    observaciones: 5,
-    grabaciones: 0,
-  },
-  {
-    id_sesion: 3,
-    id_reserva: 5,
-    titulo: "Evaluacion de competencias clinicas",
-    paciente: "Caso simulado",
-    estudiante: "Laura Fuentes",
-    id_estudiante: 14,
-    docente: "Dra. Morales",
-    id_docente: 21,
-    camara: "Sala B",
-    fecha: "2026-05-23",
-    hora_inicio: "09:00",
-    hora_fin: "11:00",
-    estado: "programada",
-    motivo: "Sesion pendiente de realizacion asociada a reserva aprobada.",
-    observaciones: 0,
-    grabaciones: 0,
-  },
-  {
-    id_sesion: 4,
-    id_reserva: 6,
-    titulo: "Seguimiento de caso clinico",
-    paciente: "Paciente reservado",
-    estudiante: "Mariana Ortiz",
-    id_estudiante: 15,
-    docente: "Maria Lopez",
-    id_docente: 10,
-    camara: "Sala D",
-    fecha: "2026-05-24",
-    hora_inicio: "08:00",
-    hora_fin: "09:00",
-    estado: "programada",
-    motivo: "Sesion breve para seguimiento de objetivos terapeuticos.",
-    observaciones: 1,
-    grabaciones: 0,
-  },
-  {
-    id_sesion: 5,
-    id_reserva: 7,
-    titulo: "Entrevista clinica supervisada",
-    paciente: "Paciente reservado",
-    estudiante: "Pedro Salinas",
-    id_estudiante: 13,
-    docente: "Dr. Ruiz",
-    id_docente: 23,
-    camara: "Sala C",
-    fecha: "2026-05-25",
-    hora_inicio: "15:00",
-    hora_fin: "17:00",
-    estado: "cancelada",
-    motivo: "Cancelada por conflicto de disponibilidad de sala.",
-    observaciones: 0,
-    grabaciones: 0,
-  },
-]
-
-const MOCK_USER_ID = { admin: 0, docente: 21, estudiante: 11 }
-
+// ─── CONFIG ESTADOS ───────────────────────────────────────────────────────────
 const ESTADO_CONFIG = {
-  programada: { label: "Programada", icon: CalendarClock, cls: "bg-blue-50 text-blue-700 border-blue-200" },
-  en_curso: { label: "En curso", icon: Video, cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  finalizada: { label: "Finalizada", icon: CheckCircle2, cls: "bg-slate-100 text-slate-700 border-slate-200" },
-  cancelada: { label: "Cancelada", icon: XCircle, cls: "bg-red-50 text-red-700 border-red-200" },
+  Programada: { label: "Programada", icon: CalendarClock, cls: "bg-blue-50 text-blue-700 border-blue-200"     },
+  Realizada:  { label: "Realizada",  icon: CheckCircle2,  cls: "bg-slate-100 text-slate-700 border-slate-200" },
+  Cancelada:  { label: "Cancelada",  icon: XCircle,       cls: "bg-red-50 text-red-700 border-red-200"        },
 }
 
+// ─── ANIMACIONES ──────────────────────────────────────────────────────────────
 const containerVariants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.06 } },
 }
-
 const itemVariants = {
-  hidden: { opacity: 0, y: 14 },
+  hidden:  { opacity: 0, y: 14 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: "easeOut" } },
 }
 
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 function formatFecha(iso) {
-  const [y, m, d] = iso.split("-")
-  const meses = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+  if (!iso) return "—"
+  const [y, m, d] = iso.slice(0, 10).split("-")
+  const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"]
   return `${parseInt(d, 10)} ${meses[parseInt(m, 10) - 1]}. ${y}`
 }
 
-function EstadoBadge({ estado }) {
-  const cfg = ESTADO_CONFIG[estado] ?? ESTADO_CONFIG.programada
-  const Icon = cfg.icon
+function formatHora(time) {
+  if (!time) return "—"
+  return time.slice(0, 5)
+}
 
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+function Toast({ message, type }) {
+  const styles = {
+    success: "bg-emerald-600 text-white",
+    error:   "bg-red-600 text-white",
+    warning: "bg-amber-500 text-white",
+  }
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0,  scale: 1    }}
+      exit={{    opacity: 0, y: 10, scale: 0.95 }}
+      className={`px-4 py-2.5 rounded-xl shadow-lg text-sm font-medium pointer-events-auto ${styles[type] ?? styles.success}`}
+    >
+      {message}
+    </motion.div>
+  )
+}
+
+// ─── MODAL DE CONFIRMACIÓN ────────────────────────────────────────────────────
+function ConfirmModal({ open, title, description, confirmLabel, confirmCls, onConfirm, onCancel, loading }) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+          onClick={onCancel}
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1,    opacity: 1 }}
+            exit={{    scale: 0.95, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 340, damping: 30 }}
+            onClick={e => e.stopPropagation()}
+            className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-sm p-6"
+          >
+            <h3 className="text-base font-semibold text-slate-800">{title}</h3>
+            <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">{description}</p>
+            <div className="flex justify-end gap-2 mt-5">
+              <button
+                onClick={onCancel}
+                disabled={loading}
+                className="h-9 px-4 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={onConfirm}
+                disabled={loading}
+                className={`h-9 px-4 rounded-lg text-sm text-white font-medium transition-colors disabled:opacity-50 flex items-center gap-2 ${confirmCls}`}
+              >
+                {loading && <Loader2 size={14} className="animate-spin" />}
+                {confirmLabel}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
+// ─── SUB-COMPONENTES ──────────────────────────────────────────────────────────
+function EstadoBadge({ estado }) {
+  const cfg = ESTADO_CONFIG[estado] ?? ESTADO_CONFIG.Programada
+  const Icon = cfg.icon
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${cfg.cls}`}>
-      <Icon size={11} />
-      {cfg.label}
+      <Icon size={11} />{cfg.label}
     </span>
   )
 }
 
 function StatCard({ label, value, icon: Icon, tone }) {
   const tones = {
-    blue: "bg-blue-50 text-blue-700 border-blue-100",
+    blue:    "bg-blue-50 text-blue-700 border-blue-100",
     emerald: "bg-emerald-50 text-emerald-700 border-emerald-100",
-    slate: "bg-slate-50 text-slate-700 border-slate-100",
-    amber: "bg-amber-50 text-amber-700 border-amber-100",
+    slate:   "bg-slate-50 text-slate-700 border-slate-100",
+    amber:   "bg-amber-50 text-amber-700 border-amber-100",
   }
-
   return (
     <motion.div variants={itemVariants} className={`rounded-xl border p-4 ${tones[tone]}`}>
       <div className="flex items-center justify-between gap-3">
@@ -160,361 +137,451 @@ function StatCard({ label, value, icon: Icon, tone }) {
   )
 }
 
-function SesionMobileCard({ sesion, onOpen, onCancel }) {
-  const puedeCancelar = sesion.estado === "programada" || sesion.estado === "en_curso"
+function SesionMobileCard({ sesion, onOpen, onConcluir, onEliminar, isAdmin, isDocente }) {
+  const puedesConcluir = (isAdmin || isDocente) && sesion.estado === "Programada"
+  const puedosEliminar = isAdmin && (sesion.estado === "Realizada" || sesion.estado === "Cancelada")
 
   return (
-    <motion.div
-      variants={itemVariants}
-      className="w-full rounded-xl border border-slate-200 bg-white p-4 hover:border-blue-200 hover:bg-blue-50/30 transition-all"
-    >
-      <button type="button" onClick={onOpen} className="w-full text-left">
+    <motion.div variants={itemVariants} className="rounded-xl border border-slate-200 bg-white p-4">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="w-full text-left"
+      >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-800 truncate">{sesion.titulo}</p>
-            <p className="text-xs text-slate-400 mt-1">{formatFecha(sesion.fecha)} · {sesion.hora_inicio} - {sesion.hora_fin}</p>
+            <p className="text-xs text-slate-400 mt-1">
+              {formatFecha(sesion.fecha_realizacion)} · {formatHora(sesion.hora_inicio)} – {formatHora(sesion.hora_fin)}
+            </p>
           </div>
           <EstadoBadge estado={sesion.estado} />
         </div>
-
         <div className="grid grid-cols-2 gap-2 mt-4 text-xs text-slate-500">
-          <span className="flex items-center gap-1.5 min-w-0"><Camera size={13} className="text-slate-300" />{sesion.camara}</span>
-          <span className="flex items-center gap-1.5 min-w-0"><UserRound size={13} className="text-slate-300" />{sesion.docente}</span>
-          <span className="flex items-center gap-1.5 min-w-0 col-span-2"><Users size={13} className="text-slate-300" />{sesion.estudiante}</span>
+          <span className="flex items-center gap-1.5 min-w-0">
+            <Camera size={13} className="text-slate-300" />{sesion.camara}
+          </span>
+          <span className="flex items-center gap-1.5 min-w-0 col-span-2">
+            <UserRound size={13} className="text-slate-300" />
+            {sesion.nombre_solicitante} {sesion.apellido_solicitante}
+          </span>
         </div>
       </button>
 
-      {puedeCancelar && (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="mt-4 w-full flex items-center justify-center gap-1.5 h-8 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold transition-colors"
-        >
-          <X size={13} /> Cancelar sesion
-        </button>
+      {/* Acciones mobile */}
+      {(puedesConcluir || puedosEliminar) && (
+        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+          {puedesConcluir && (
+            <button
+              onClick={e => { e.stopPropagation(); onConcluir(sesion) }}
+              className="flex items-center gap-1.5 h-7 px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium hover:bg-emerald-100 transition-colors"
+            >
+              <CheckCheck size={12} /> Concluir
+            </button>
+          )}
+          {puedosEliminar && (
+            <button
+              onClick={e => { e.stopPropagation(); onEliminar(sesion) }}
+              className="flex items-center gap-1.5 h-7 px-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs font-medium hover:bg-red-100 transition-colors"
+            >
+              <Trash2 size={12} /> Eliminar
+            </button>
+          )}
+        </div>
       )}
     </motion.div>
   )
 }
 
-function SesionesCanceladasModal({ sesiones, onClose, onRestore }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 8 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        transition={{ duration: 0.2 }}
-        className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl z-10 overflow-hidden"
-      >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
-              <XCircle size={15} className="text-red-600" />
-            </div>
-            <div>
-              <h2 className="text-sm font-semibold text-slate-800">Sesiones canceladas</h2>
-              <p className="text-[11px] text-slate-400">Restaura una sesion si fue cancelada por error.</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors">
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="max-h-[60vh] overflow-y-auto p-5">
-          {sesiones.length === 0 ? (
-            <div className="py-12 text-center">
-              <Video size={32} className="text-slate-200 mx-auto mb-3" />
-              <p className="text-sm text-slate-400">No hay sesiones canceladas.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {sesiones.map(sesion => (
-                <div key={sesion.id_sesion} className="rounded-xl border border-slate-200 bg-white p-4 flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 truncate">{sesion.titulo}</p>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {formatFecha(sesion.fecha)} · {sesion.hora_inicio} - {sesion.hora_fin}
-                    </p>
-                    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 text-xs text-slate-500">
-                      <span className="inline-flex items-center gap-1.5"><Camera size={12} className="text-slate-300" />{sesion.camara}</span>
-                      <span className="inline-flex items-center gap-1.5"><UserRound size={12} className="text-slate-300" />{sesion.docente}</span>
-                      <span className="inline-flex items-center gap-1.5"><Users size={12} className="text-slate-300" />{sesion.estudiante}</span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onRestore(sesion)}
-                    className="shrink-0 flex items-center gap-1.5 h-8 px-3 rounded-lg bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold transition-colors"
-                  >
-                    Restaurar
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/60 flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="h-9 px-4 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 text-xs font-semibold transition-colors"
-          >
-            Cerrar
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  )
-}
-
+// ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
 export default function Sesiones() {
-  const { user } = useAuth()
-  const navigate = useNavigate()
-  const isAdmin = user?.rol === "admin"
-  const isDocente = user?.rol === "docente"
+  const { user }   = useAuth()
+  const navigate   = useNavigate()
+  const isAdmin    = parseInt(user?.id_rol) === 1
+  const isDocente  = parseInt(user?.id_rol) === 2
 
-  const [sesiones, setSesiones] = useState(MOCK_SESIONES)
-  const [search, setSearch] = useState("")
-  const [filtroEstado, setFiltroEstado] = useState("todos")
-  const [showCanceladas, setShowCanceladas] = useState(false)
+  const [sesiones, setSesiones]           = useState([])
+  const [loading, setLoading]             = useState(true)
+  const [error, setError]                 = useState("")
+  const [search, setSearch]               = useState("")
+  const [filtroEstado, setFiltroEstado]   = useState("todos")
 
-  const sesionesVisibles = useMemo(() => {
-    if (isAdmin) return sesiones
-    if (isDocente) return sesiones.filter(s => s.id_docente === MOCK_USER_ID.docente)
-    return sesiones.filter(s => s.id_estudiante === MOCK_USER_ID.estudiante)
-  }, [isAdmin, isDocente, sesiones])
-
-  const filtered = sesionesVisibles.filter(s => {
-    const term = search.toLowerCase()
-    const matchSearch =
-      s.titulo.toLowerCase().includes(term) ||
-      s.estudiante.toLowerCase().includes(term) ||
-      s.docente.toLowerCase().includes(term) ||
-      s.camara.toLowerCase().includes(term) ||
-      s.motivo.toLowerCase().includes(term)
-    const matchEstado = filtroEstado === "todos" || s.estado === filtroEstado
-    return matchSearch && matchEstado
-  })
-
-  const counts = {
-    todos: sesionesVisibles.length,
-    programada: sesionesVisibles.filter(s => s.estado === "programada").length,
-    en_curso: sesionesVisibles.filter(s => s.estado === "en_curso").length,
-    finalizada: sesionesVisibles.filter(s => s.estado === "finalizada").length,
-    cancelada: sesionesVisibles.filter(s => s.estado === "cancelada").length,
+  // ── Toasts ───────────────────────────────────────────────────────────────
+  const [toasts, setToasts] = useState([])
+  function addToast(message, type = "success") {
+    const id = Date.now()
+    setToasts(prev => [...prev, { id, message, type }])
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3500)
   }
 
+  // ── Modal de confirmación ────────────────────────────────────────────────
+  const [modal, setModal] = useState({ open: false, tipo: null, sesion: null })
+  const [modalLoading, setModalLoading] = useState(false)
+
+  function abrirConcluir(sesion) {
+    setModal({ open: true, tipo: "concluir", sesion })
+  }
+  function abrirEliminar(sesion) {
+    setModal({ open: true, tipo: "eliminar", sesion })
+  }
+  function cerrarModal() {
+    if (modalLoading) return
+    setModal({ open: false, tipo: null, sesion: null })
+  }
+
+  // ── Carga inicial ────────────────────────────────────────────────────────
+  useEffect(() => {
+    cargarSesiones()
+  }, [])
+
+  async function cargarSesiones() {
+    setLoading(true)
+    setError("")
+    try {
+      const data = await getSesiones(user?.id, user?.id_rol)
+      setSesiones(data)
+    } catch (err) {
+      setError(err?.response?.data?.message ?? "Error al cargar las sesiones.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ── Acción: concluir sesión ───────────────────────────────────────────────
+  async function handleConcluir() {
+    setModalLoading(true)
+    try {
+      const actualizada = await cambiarEstadoSesion(modal.sesion.id_sesion, "Realizada")
+      setSesiones(prev =>
+        prev.map(s => s.id_sesion === modal.sesion.id_sesion ? { ...s, estado: "Realizada" } : s)
+      )
+      addToast("Sesión marcada como Realizada.")
+      cerrarModal()
+    } catch (err) {
+      addToast(err?.response?.data?.message ?? "Error al concluir la sesión.", "error")
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  // ── Acción: eliminar sesión ──────────────────────────────────────────────
+  async function handleEliminar() {
+    setModalLoading(true)
+    try {
+      await deleteSesion(modal.sesion.id_sesion)
+      setSesiones(prev => prev.filter(s => s.id_sesion !== modal.sesion.id_sesion))
+      addToast("Sesión eliminada correctamente.")
+      cerrarModal()
+    } catch (err) {
+      addToast(err?.response?.data?.message ?? "Error al eliminar la sesión.", "error")
+    } finally {
+      setModalLoading(false)
+    }
+  }
+
+  // ── Filtrado ─────────────────────────────────────────────────────────────
+  const filtered = useMemo(() => {
+    return sesiones.filter(s => {
+      const term = search.toLowerCase()
+      const matchSearch =
+        s.titulo.toLowerCase().includes(term) ||
+        `${s.nombre_solicitante} ${s.apellido_solicitante}`.toLowerCase().includes(term) ||
+        s.camara.toLowerCase().includes(term) ||
+        (s.motivo ?? "").toLowerCase().includes(term)
+      const matchEstado = filtroEstado === "todos" || s.estado === filtroEstado
+      return matchSearch && matchEstado
+    })
+  }, [sesiones, search, filtroEstado])
+
+  const counts = useMemo(() => ({
+    todos:      sesiones.length,
+    Programada: sesiones.filter(s => s.estado === "Programada").length,
+    Realizada:  sesiones.filter(s => s.estado === "Realizada").length,
+    Cancelada:  sesiones.filter(s => s.estado === "Cancelada").length,
+  }), [sesiones])
+
   const stats = [
-    { label: "Sesiones", value: counts.todos, icon: Video, tone: "blue" },
-    { label: "En curso", value: counts.en_curso, icon: AlertCircle, tone: "emerald" },
-    { label: "Finalizadas", value: counts.finalizada, icon: CheckCircle2, tone: "slate" },
-    { label: "Observaciones", value: sesionesVisibles.reduce((acc, s) => acc + s.observaciones, 0), icon: Eye, tone: "amber" },
+    { label: "Sesiones",    value: counts.todos,      icon: Video,        tone: "blue"    },
+    { label: "Programadas", value: counts.Programada, icon: CalendarClock,tone: "emerald" },
+    { label: "Realizadas",  value: counts.Realizada,  icon: CheckCircle2, tone: "slate"   },
+    { label: "Canceladas",  value: counts.Cancelada,  icon: XCircle,      tone: "amber"   },
   ]
 
   const filtros = [
-    { key: "todos", label: "Todas" },
-    { key: "programada", label: "Programadas" },
-    { key: "en_curso", label: "En curso" },
-    { key: "finalizada", label: "Finalizadas" },
-    { key: "cancelada", label: "Canceladas" },
+    { key: "todos",      label: "Todas"       },
+    { key: "Programada", label: "Programadas" },
+    { key: "Realizada",  label: "Realizadas"  },
+    { key: "Cancelada",  label: "Canceladas"  },
   ]
 
-  const handleCancelar = (sesion) => {
-    const ok = window.confirm(`¿Cancelar la sesion "${sesion.titulo}"? El registro quedara como historial.`)
-    if (!ok) return
-    setSesiones(prev => prev.map(s => s.id_sesion === sesion.id_sesion ? { ...s, estado: "cancelada" } : s))
-  }
-
-  const handleRestaurar = (sesion) => {
-    setSesiones(prev => prev.map(s => s.id_sesion === sesion.id_sesion ? { ...s, estado: "programada" } : s))
-  }
-
+  // ─── RENDER ───────────────────────────────────────────────────────────────
   return (
-    <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-5">
-      <motion.div variants={itemVariants} className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-slate-800 leading-tight">Sesiones</h1>
-          <p className="text-sm text-slate-400 mt-0.5">
-            {isAdmin ? "Control de sesiones asociadas a reservas aprobadas." : "Consulta tus sesiones y el seguimiento de cada cita."}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setShowCanceladas(true)}
-            className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-semibold transition-colors"
-          >
-            <XCircle size={14} />
-            Sesiones canceladas
-            <span className="px-1.5 py-0.5 rounded-full bg-white/70 text-[10px] font-bold">
-              {counts.cancelada}
-            </span>
-          </button>
+    <>
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-5">
+
+        {/* Header */}
+        <motion.div variants={itemVariants} className="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h1 className="text-xl font-semibold text-slate-800 leading-tight">Sesiones</h1>
+            <p className="text-sm text-slate-400 mt-0.5">
+              {isAdmin
+                ? "Control de sesiones asociadas a reservas aprobadas."
+                : "Consulta tus sesiones y el seguimiento de cada cita."}
+            </p>
+          </div>
           <div className="flex items-center gap-1.5 h-9 px-3 rounded-xl bg-white border border-slate-200 text-xs text-slate-500">
             <Filter size={14} className="text-slate-400" />
             {isAdmin ? "Vista global" : isDocente ? "Mis sesiones docentes" : "Mis sesiones asignadas"}
           </div>
-        </div>
-      </motion.div>
+        </motion.div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map(stat => <StatCard key={stat.label} {...stat} />)}
-      </div>
-
-      <motion.div variants={itemVariants} className="flex items-center gap-2 flex-wrap">
-        {filtros.map(f => (
-          <button
-            key={f.key}
-            type="button"
-            onClick={() => setFiltroEstado(f.key)}
-            className={`flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-medium transition-all ${
-              filtroEstado === f.key
-                ? "bg-blue-700 border-blue-700 text-white"
-                : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
-            }`}
-          >
-            {f.label}
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-              filtroEstado === f.key ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
-            }`}>
-              {counts[f.key]}
-            </span>
-          </button>
-        ))}
-
-        <div className="relative w-full sm:w-64 sm:ml-auto">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar sesion..."
-            className="h-8 pl-8 pr-3 w-full rounded-lg border border-slate-200 bg-white text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
-          />
-        </div>
-      </motion.div>
-
-      <motion.div variants={itemVariants} className="bg-white rounded-xl border border-slate-200 overflow-hidden hidden md:block">
-        <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-            <Video size={15} className="text-blue-600" />
-            Historial de sesiones
-          </h2>
-          <span className="text-[11px] text-slate-400">{filtered.length} resultado{filtered.length !== 1 ? "s" : ""}</span>
+        {/* Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {stats.map(stat => <StatCard key={stat.label} {...stat} />)}
         </div>
 
-        {filtered.length === 0 ? (
-          <div className="py-14 text-center">
-            <Video size={32} className="text-slate-200 mx-auto mb-3" />
-            <p className="text-sm text-slate-400">No hay sesiones que coincidan con los filtros.</p>
+        {/* Filtros */}
+        <motion.div variants={itemVariants} className="flex items-center gap-2 flex-wrap">
+          {filtros.map(f => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => setFiltroEstado(f.key)}
+              className={`flex items-center gap-1.5 h-8 px-3 rounded-lg border text-xs font-medium transition-all ${
+                filtroEstado === f.key
+                  ? "bg-blue-700 border-blue-700 text-white"
+                  : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
+              }`}
+            >
+              {f.label}
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                filtroEstado === f.key ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+              }`}>
+                {counts[f.key] ?? 0}
+              </span>
+            </button>
+          ))}
+          <div className="relative w-full sm:w-64 sm:ml-auto">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar sesión..."
+              className="h-8 pl-8 pr-3 w-full rounded-lg border border-slate-200 bg-white text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 transition-all"
+            />
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="text-left text-[11px] font-medium text-slate-400 px-5 py-3">Sesion</th>
-                  <th className="text-left text-[11px] font-medium text-slate-400 px-4 py-3">Participantes</th>
-                  <th className="text-left text-[11px] font-medium text-slate-400 px-4 py-3">Sala</th>
-                  <th className="text-left text-[11px] font-medium text-slate-400 px-4 py-3">Fecha</th>
-                  <th className="text-left text-[11px] font-medium text-slate-400 px-4 py-3">Estado</th>
-                  <th className="text-right text-[11px] font-medium text-slate-400 px-5 py-3">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((s, i) => (
-                  <motion.tr
-                    key={s.id_sesion}
-                    initial={{ opacity: 0, x: -6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.035 }}
-                    onClick={() => navigate(`/sesiones/${s.id_sesion}`)}
-                    className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors last:border-b-0 cursor-pointer"
-                  >
-                    <td className="px-5 py-3.5">
-                      <p className="font-medium text-slate-800 text-sm">{s.titulo}</p>
-                      <p className="text-[11px] text-slate-400">Reserva #{s.id_reserva} · {s.motivo}</p>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <p className="text-xs font-medium text-slate-700">{s.estudiante}</p>
-                      <p className="text-[11px] text-slate-400">{s.docente}</p>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
-                        <Camera size={12} className="text-slate-300" />
-                        {s.camara}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <p className="text-xs text-slate-600">{formatFecha(s.fecha)}</p>
-                      <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                        <Clock size={10} />{s.hora_inicio} - {s.hora_fin}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3.5"><EstadoBadge estado={s.estado} /></td>
-                    <td className="px-5 py-3.5">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {(s.estado === "programada" || s.estado === "en_curso") && (
-                          <button
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation()
-                              handleCancelar(s)
-                            }}
-                            className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-[11px] font-semibold transition-all"
-                          >
-                            <X size={13} />
-                            Cancelar
-                          </button>
+        </motion.div>
+
+        {/* Tabla — desktop */}
+        <motion.div variants={itemVariants} className="bg-white rounded-xl border border-slate-200 overflow-hidden hidden md:block">
+          <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+              <Video size={15} className="text-blue-600" />
+              Historial de sesiones
+            </h2>
+            <span className="text-[11px] text-slate-400">{filtered.length} resultado{filtered.length !== 1 ? "s" : ""}</span>
+          </div>
+
+          {loading && (
+            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+              <Loader2 className="w-7 h-7 animate-spin mb-2" />
+              <p className="text-sm">Cargando sesiones…</p>
+            </div>
+          )}
+
+          {!loading && error && (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-50 border border-red-200 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+              </div>
+              <p className="text-sm text-slate-600">{error}</p>
+              <button onClick={cargarSesiones} className="text-sm text-blue-600 hover:underline font-medium">
+                Reintentar
+              </button>
+            </div>
+          )}
+
+          {!loading && !error && filtered.length === 0 && (
+            <div className="py-14 text-center">
+              <Video size={32} className="text-slate-200 mx-auto mb-3" />
+              <p className="text-sm text-slate-400">No hay sesiones que coincidan con los filtros.</p>
+            </div>
+          )}
+
+          {!loading && !error && filtered.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100">
+                    <th className="text-left text-[11px] font-medium text-slate-400 px-5 py-3">Sesión</th>
+                    <th className="text-left text-[11px] font-medium text-slate-400 px-4 py-3">Solicitante</th>
+                    <th className="text-left text-[11px] font-medium text-slate-400 px-4 py-3">Sala</th>
+                    <th className="text-left text-[11px] font-medium text-slate-400 px-4 py-3">Fecha</th>
+                    <th className="text-left text-[11px] font-medium text-slate-400 px-4 py-3">Estado</th>
+                    {/* La columna de acciones solo ocupa espacio si el usuario puede hacer algo */}
+                    {(isAdmin || isDocente) && (
+                      <th className="text-left text-[11px] font-medium text-slate-400 px-4 py-3">Acciones</th>
+                    )}
+                    <th className="text-right text-[11px] font-medium text-slate-400 px-5 py-3">Detalle</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((s, i) => {
+                    const puedesConcluir = (isAdmin || isDocente) && s.estado === "Programada"
+                    const puedosEliminar = isAdmin && (s.estado === "Realizada" || s.estado === "Cancelada")
+
+                    return (
+                      <motion.tr
+                        key={s.id_sesion}
+                        initial={{ opacity: 0, x: -6 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.035 }}
+                        className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors last:border-b-0"
+                      >
+                        {/* Clic en la fila excepto en acciones */}
+                        <td
+                          className="px-5 py-3.5 cursor-pointer"
+                          onClick={() => navigate(`/sesiones/${s.id_sesion}`)}
+                        >
+                          <p className="font-medium text-slate-800 text-sm">{s.titulo}</p>
+                          <p className="text-[11px] text-slate-400">
+                            Reserva #{s.id_reserva} · {s.tipo_sesion}
+                          </p>
+                        </td>
+                        <td
+                          className="px-4 py-3.5 cursor-pointer"
+                          onClick={() => navigate(`/sesiones/${s.id_sesion}`)}
+                        >
+                          <p className="text-xs font-medium text-slate-700">
+                            {s.nombre_solicitante} {s.apellido_solicitante}
+                          </p>
+                          <p className="text-[11px] text-slate-400 capitalize">{s.rol_solicitante}</p>
+                        </td>
+                        <td
+                          className="px-4 py-3.5 cursor-pointer"
+                          onClick={() => navigate(`/sesiones/${s.id_sesion}`)}
+                        >
+                          <span className="inline-flex items-center gap-1.5 text-xs text-slate-500">
+                            <Camera size={12} className="text-slate-300" />{s.camara}
+                          </span>
+                        </td>
+                        <td
+                          className="px-4 py-3.5 cursor-pointer"
+                          onClick={() => navigate(`/sesiones/${s.id_sesion}`)}
+                        >
+                          <p className="text-xs text-slate-600">{formatFecha(s.fecha_realizacion)}</p>
+                          <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+                            <Clock size={10} />{formatHora(s.hora_inicio)} – {formatHora(s.hora_fin)}
+                          </p>
+                        </td>
+                        <td
+                          className="px-4 py-3.5 cursor-pointer"
+                          onClick={() => navigate(`/sesiones/${s.id_sesion}`)}
+                        >
+                          <EstadoBadge estado={s.estado} />
+                        </td>
+
+                        {/* Acciones — NO navega al hacer clic */}
+                        {(isAdmin || isDocente) && (
+                          <td className="px-4 py-3.5">
+                            <div className="flex items-center gap-1.5">
+                              {puedesConcluir && (
+                                <button
+                                  onClick={() => abrirConcluir(s)}
+                                  title="Marcar como Realizada"
+                                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-medium hover:bg-emerald-100 transition-colors"
+                                >
+                                  <CheckCheck size={12} /> Concluir
+                                </button>
+                              )}
+                              {puedosEliminar && (
+                                <button
+                                  onClick={() => abrirEliminar(s)}
+                                  title="Eliminar sesión"
+                                  className="inline-flex items-center gap-1 h-7 px-2.5 rounded-lg bg-red-50 border border-red-200 text-red-600 text-[11px] font-medium hover:bg-red-100 transition-colors"
+                                >
+                                  <Trash2 size={12} /> Eliminar
+                                </button>
+                              )}
+                            </div>
+                          </td>
                         )}
-                        <button className="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all">
-                        <ChevronRight size={16} />
-                      </button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </motion.div>
 
-      <div className="md:hidden space-y-3">
-        {filtered.length === 0 ? (
-          <div className="py-12 text-center bg-white border border-slate-200 rounded-xl">
-            <Video size={30} className="text-slate-200 mx-auto mb-3" />
-            <p className="text-sm text-slate-400">No hay sesiones que mostrar.</p>
-          </div>
-        ) : (
-          filtered.map(s => (
+                        <td className="px-5 py-3.5 text-right">
+                          <button
+                            onClick={() => navigate(`/sesiones/${s.id_sesion}`)}
+                            className="inline-flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                        </td>
+                      </motion.tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </motion.div>
+
+        {/* Cards — mobile */}
+        <div className="md:hidden space-y-3">
+          {loading && (
+            <div className="flex justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+            </div>
+          )}
+          {!loading && filtered.length === 0 && (
+            <div className="py-12 text-center bg-white border border-slate-200 rounded-xl">
+              <Video size={30} className="text-slate-200 mx-auto mb-3" />
+              <p className="text-sm text-slate-400">No hay sesiones que mostrar.</p>
+            </div>
+          )}
+          {!loading && filtered.map(s => (
             <SesionMobileCard
               key={s.id_sesion}
               sesion={s}
               onOpen={() => navigate(`/sesiones/${s.id_sesion}`)}
-              onCancel={() => handleCancelar(s)}
+              onConcluir={abrirConcluir}
+              onEliminar={abrirEliminar}
+              isAdmin={isAdmin}
+              isDocente={isDocente}
             />
-          ))
-        )}
+          ))}
+        </div>
+
+      </motion.div>
+
+      {/* Modal Concluir */}
+      <ConfirmModal
+        open={modal.open && modal.tipo === "concluir"}
+        title="¿Marcar sesión como Realizada?"
+        description={`La sesión "${modal.sesion?.titulo}" pasará al estado Realizada. Una vez concluida podrá ser eliminada si es necesario.`}
+        confirmLabel="Sí, concluir"
+        confirmCls="bg-emerald-600 hover:bg-emerald-700"
+        onConfirm={handleConcluir}
+        onCancel={cerrarModal}
+        loading={modalLoading}
+      />
+
+      {/* Modal Eliminar */}
+      <ConfirmModal
+        open={modal.open && modal.tipo === "eliminar"}
+        title="¿Eliminar esta sesión?"
+        description={`Se eliminará permanentemente "${modal.sesion?.titulo}". Esta acción no se puede deshacer.`}
+        confirmLabel="Sí, eliminar"
+        confirmCls="bg-red-600 hover:bg-red-700"
+        onConfirm={handleEliminar}
+        onCancel={cerrarModal}
+        loading={modalLoading}
+      />
+
+      {/* Toasts */}
+      <div className="fixed bottom-6 right-6 z-[100] flex flex-col gap-2 pointer-events-none">
+        <AnimatePresence>
+          {toasts.map(t => <Toast key={t.id} message={t.message} type={t.type} />)}
+        </AnimatePresence>
       </div>
-      <AnimatePresence>
-        {showCanceladas && (
-          <SesionesCanceladasModal
-            sesiones={sesionesVisibles.filter(s => s.estado === "cancelada")}
-            onClose={() => setShowCanceladas(false)}
-            onRestore={handleRestaurar}
-          />
-        )}
-      </AnimatePresence>
-    </motion.div>
+    </>
   )
 }
