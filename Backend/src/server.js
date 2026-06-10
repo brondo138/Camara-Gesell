@@ -6,9 +6,20 @@ const routes = require('./routes/index.routes');
 
 const app = express();
 
-// Configuración de CORS para permitir peticiones desde Vite
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('No permitido por CORS'));
+        }
+    },
     credentials: true
 }));
 
@@ -43,6 +54,8 @@ app.get('/api/test-db', async (req, res) => {
 
 app.use('/api', routes);
 
-app.listen(env.PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${env.PORT}`);
+const PORT = process.env.PORT || env.PORT || 3000;
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor corriendo en el puerto ${PORT}`);
 });
