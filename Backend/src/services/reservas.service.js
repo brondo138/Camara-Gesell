@@ -66,6 +66,20 @@ const crearReserva = async (body) => {
         throw error;
     }
 
+    const camara = await reservasRepository.obtenerCamaraPorId(id_camara);
+
+    if (!camara) {
+        const error = new Error('La cámara indicada no existe');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    if (!camara.activa) {
+        const error = new Error('No se puede reservar una cámara inactiva');
+        error.statusCode = 400;
+        throw error;
+    }
+
     let idGrupoReserva = id_grupo;
 
     if (!idGrupoReserva) {
@@ -84,6 +98,20 @@ const crearReserva = async (body) => {
         }
 
         idGrupoReserva = gruposUsuario[0].id_grupo;
+    }
+
+    const grupoReserva = await reservasRepository.obtenerGrupoPorId(idGrupoReserva);
+
+    if (!grupoReserva) {
+        const error = new Error('El grupo indicado no existe');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    if (!grupoReserva.activo) {
+        const error = new Error('No se puede reservar con un grupo inactivo');
+        error.statusCode = 400;
+        throw error;
     }
 
     const perteneceGrupo = await reservasRepository.usuarioPerteneceAGrupo(

@@ -367,7 +367,8 @@ export default function NuevaReserva() {
       try {
         const todosGrupos = await getGrupos()
         const gruposUsuario = []
-        for (const grupo of todosGrupos) {
+        const gruposActivos = todosGrupos.filter(grupo => Number(grupo.activo) === 1)
+        for (const grupo of gruposActivos) {
           try {
             const miembros = await getMiembrosGrupo(grupo.id_grupo)
             if (miembros.some(m => m.id_usuario === user.id)) {

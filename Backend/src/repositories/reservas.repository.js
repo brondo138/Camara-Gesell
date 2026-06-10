@@ -129,6 +129,18 @@ const obtenerUsuarioPorId = async (id_usuario) => {
     return rows[0];
 };
 
+const obtenerCamaraPorId = async (id_camara) => {
+    const query = `
+        SELECT id_camara, nombre, activa
+        FROM camaras_gesell
+        WHERE id_camara = ?
+        LIMIT 1;
+    `;
+
+    const [rows] = await pool.query(query, [id_camara]);
+    return rows[0];
+};
+
 const obtenerGruposPorUsuario = async (id_usuario) => {
     const query = `
         SELECT
@@ -145,6 +157,18 @@ const obtenerGruposPorUsuario = async (id_usuario) => {
 
     const [rows] = await pool.query(query, [id_usuario]);
     return rows;
+};
+
+const obtenerGrupoPorId = async (id_grupo) => {
+    const query = `
+        SELECT id_grupo, nombre, activo
+        FROM grupos
+        WHERE id_grupo = ?
+        LIMIT 1;
+    `;
+
+    const [rows] = await pool.query(query, [id_grupo]);
+    return rows[0];
 };
 
 const usuarioPerteneceAGrupo = async (id_usuario, id_grupo) => {
@@ -237,7 +261,9 @@ module.exports = {
     obtenerReservasPorUsuario,
     obtenerReservaPorId,
     obtenerUsuarioPorId,
+    obtenerCamaraPorId,
     obtenerGruposPorUsuario,
+    obtenerGrupoPorId,
     usuarioPerteneceAGrupo,
     existeConflictoHorario,
     crearReserva,

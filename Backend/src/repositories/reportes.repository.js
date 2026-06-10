@@ -7,12 +7,12 @@ function buildWhere(id_usuario, id_rol, mes, anio) {
     const params     = []
 
     if (parseInt(id_rol) === 2) {
-        // Docente — ver actividad de su grupo
-        conditions.push(`r.id_usuario_solicitante IN (
-            SELECT gu.id_usuario
+        // Docente — ver actividad de los grupos donde pertenece actualmente
+        conditions.push(`r.id_grupo IN (
+            SELECT gu.id_grupo
             FROM grupo_usuarios gu
-            INNER JOIN grupos g ON gu.id_grupo = g.id_grupo
-            WHERE g.id_docente_responsable = ?
+            WHERE gu.id_usuario = ?
+              AND gu.rol_en_grupo = 'Docente'
         )`)
         params.push(id_usuario)
     } else if (parseInt(id_rol) === 3) {
