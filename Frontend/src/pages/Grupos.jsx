@@ -65,7 +65,7 @@ export default function Grupos() {
       const [gruposData, usuariosData] = await Promise.all([
         getGrupos(user?.id, user?.id_rol),
         isAdmin
-          ? fetch(`${import.meta.env.VITE_API_URL ?? "http://localhost:3000/api"}/usuarios`, {
+          ? fetch(`${import.meta.env.VITE_API_URL ?? "https://camara-gesell.onrender.com/api"}/usuarios`, {
               headers: { Authorization: `Bearer ${localStorage.getItem("gesell_token")}` }
             }).then(r => r.json()).then(r => r.data)
           : Promise.resolve([])
